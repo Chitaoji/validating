@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "template"
+name = "validating"
 version = "0.0.0"
 dependencies = []
 requires-python = ">=3.12"
@@ -13,7 +13,7 @@ authors = [
 maintainers = [
   {name = "Chitaoji", email = "2360742040@qq.com"}
 ]
-description = "A template repository for building python packages."
+description = "For test"
 readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -24,8 +24,8 @@ classifiers = [
 ]
 
 [project.urls]
-Documentation = "https://github.com/Chitaoji/template/blob/main/README.md"
-Repository = "https://github.com/Chitaoji/template/"
+Documentation = "https://github.com/Chitaoji/validating/blob/main/README.md"
+Repository = "https://github.com/Chitaoji/validating/"
 
 [project.scripts]
 cfg = "template.__main__:run"

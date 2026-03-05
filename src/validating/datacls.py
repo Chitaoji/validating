@@ -35,11 +35,14 @@ def dataclass(
     validate_methods: bool = True,
 ) -> type | Callable[[type], type]:
     """
-    Dataclass decorator compatible with `dataclasses.dataclass`.
+    Dataclass decorator compatible with :func:`dataclasses.dataclass`.
 
-    The only behavior difference is that annotated class attributes with direct
-    default values (for example `x: int = 1`) are automatically converted to
-    `attr(default=1)` before applying `dataclasses.dataclass`.
+    Differences from the stdlib decorator:
+
+    1. Annotated class attributes with direct defaults (for example ``x: int = 1``)
+       are automatically promoted to ``attr(default=1)``.
+    2. When ``validate_methods=True``, public methods are wrapped by
+       :func:`validating.validate`.
 
     """
     apply_kwargs = {
@@ -106,6 +109,8 @@ def _apply_validating_dataclass(
 
 
 def _decorate_public_methods(cls: type) -> None:
+    """Wrap public instance/static/class methods on ``cls`` with ``validate``."""
+
     for name, value in cls.__dict__.items():
         if name.startswith("_"):
             continue
@@ -123,6 +128,8 @@ def _decorate_public_methods(cls: type) -> None:
 
 
 def _promote_defaults_to_attr(cls: type) -> type:
+    """Convert plain annotated defaults on ``cls`` into :func:`attr` fields."""
+
     for name in cls.__annotations__:
         if name not in cls.__dict__:
             continue

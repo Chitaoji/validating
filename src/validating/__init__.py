@@ -1,16 +1,17 @@
-"""
-# template
-A template repository for building python packages.
+"""Public package interface for :mod:`validating`.
 
-## See Also
-### Github repository
-* https://github.com/Chitaoji/template/
+This package re-exports the main runtime-validation APIs:
 
-### PyPI project
-* https://pypi.org/project/template/
+- :func:`attr` for validated dataclass-style fields.
+- :func:`dataclass` as an enhanced wrapper around ``dataclasses.dataclass``.
+- :func:`validate` for function argument validation based on annotations.
+- :class:`ValidatorError` for definition-time configuration errors.
 
-## License
-This project falls under the BSD 3-Clause License.
+Typical usage:
+
+.. code-block:: python
+
+    from validating import attr, dataclass, validate, ValidatorError
 
 """
 

@@ -1,8 +1,8 @@
 """
-Provides the `validate()` decorator for runtime function argument validation.
+Provides the :func:`validate` decorator for runtime function argument validation.
 
 NOTE: this module is private. All functions and objects are available in the main
-`validating` namespace - use that instead.
+:mod:`validating` namespace - use that instead.
 
 """
 

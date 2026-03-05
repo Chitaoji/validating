@@ -1,9 +1,9 @@
 """
-Provides a lightweight `attr()` descriptor factory that adds runtime validation to
+Provides a lightweight :func:`attr` descriptor factory that adds runtime validation to
 dataclass fields.
 
 NOTE: this module is private. All functions and objects are available in the main
-`validating` namespace - use that instead.
+:mod:`validating` namespace - use that instead.
 
 """
 
@@ -60,21 +60,21 @@ def attr(
     validator : Callable[[Any], bool], optional
         Custom validator function, by default Ellipsis.
     init : bool, optional
-        Whether this field should be included as a generated `__init__()`
-        parameter when used with `dataclasses.dataclass`, by default True.
+        Whether this field should be included as a generated ``__init__()``
+        parameter when used with :func:`dataclasses.dataclass`, by default True.
     repr : bool, optional
-        Whether this field should be included in the generated `__repr__()`
+        Whether this field should be included in the generated ``__repr__()``
         output, by default True.
     hash : Optional[bool], optional
-        Whether this field should be included in generated `__hash__()`.
-        Follows `dataclasses.field` behavior where `None` defers to
-        `compare`, by default None.
+        Whether this field should be included in generated ``__hash__()``.
+        Follows :func:`dataclasses.field` behavior where ``None`` defers to
+        ``compare``, by default None.
     compare : bool, optional
         Whether this field should be used in generated comparison methods,
         by default True.
     kw_only : bool, optional
         Whether this field should be marked as keyword-only for
-        `dataclasses.dataclass` generated `__init__()`, by default False.
+        :func:`dataclasses.dataclass` generated ``__init__()``, by default False.
 
     Returns
     -------
@@ -444,7 +444,7 @@ def isoftype(
     value: object, type_hint: type, name: str, path: str = "expected"
 ) -> Optional[str]:
     """
-    Returns a detailed mismatch message when `value` does not satisfy `type_hint`.
+    Returns a detailed mismatch message when ``value`` does not satisfy ``type_hint``.
 
     Parameters
     ----------

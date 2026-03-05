@@ -14,10 +14,8 @@ This project falls under the BSD 3-Clause License.
 
 """
 
-from . import attrval, core
-from .attrval import *
+from . import core
 from .core import *
 
 __all__: list[str] = []
 __all__.extend(core.__all__)
-__all__.extend(attrval.__all__)

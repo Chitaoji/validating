@@ -128,13 +128,15 @@ def _decorate_public_methods(cls: type) -> None:
 
 
 def _promote_defaults_to_attr(cls: type) -> type:
-    """Convert plain annotated defaults on ``cls`` into :func:`attr` fields."""
+    """Convert annotated fields on ``cls`` into :func:`attr` fields."""
 
     for name in cls.__annotations__:
-        if name not in cls.__dict__:
+        if name in cls.__dict__:
+            value = cls.__dict__[name]
+            if isinstance(value, Field):
+                continue
+            setattr(cls, name, attr(default=value))
             continue
-        value = cls.__dict__[name]
-        if isinstance(value, Field):
-            continue
-        setattr(cls, name, attr(default=value))
+
+        setattr(cls, name, attr())
     return cls

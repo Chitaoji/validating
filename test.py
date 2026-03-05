@@ -55,6 +55,18 @@ class TestAttrWithDataclasses(unittest.TestCase):
         with self.assertRaises(TypeError):
             cfg.retries = "bad"
 
+    def test_validating_dataclass_promotes_required_fields(self):
+        @validating_dataclass
+        class Config:
+            retries: int
+
+        with self.assertRaises(TypeError):
+            Config(retries="bad")
+
+        cfg = Config(retries=3)
+        with self.assertRaises(TypeError):
+            cfg.retries = "bad"
+
     def test_validating_dataclass_supports_call_syntax(self):
         @validating_dataclass(eq=False)
         class Config:

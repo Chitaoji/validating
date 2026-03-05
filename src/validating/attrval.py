@@ -1,6 +1,5 @@
 """
-Provides a lightweight `attr()` descriptor factory that adds runtime validation to
-dataclass fields.
+Provides a descriptor `AttrValidator` that adds runtime validation to dataclass fields.
 
 NOTE: this module is private. All functions and objects are available in the main
 `validating` namespace - use that instead.

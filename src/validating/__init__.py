@@ -14,10 +14,10 @@ This project falls under the BSD 3-Clause License.
 
 """
 
-from . import attribute, core
-from .attribute import *
+from . import attrval, core
+from .attrval import *
 from .core import *
 
 __all__: list[str] = []
 __all__.extend(core.__all__)
-__all__.extend(attribute.__all__)
+__all__.extend(attrval.__all__)

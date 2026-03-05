@@ -8,7 +8,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 from typing import Any, Callable, Optional
 
-from .attribute import AttrValidator, ValidatorError, field_with_guard
+from .attrval import AttrValidator, ValidatorError, field_with_guard
 
 __all__ = ["attr"]
 
@@ -117,3 +117,7 @@ def attr(
         compare=compare,
         kw_only=kw_only,
     )
+
+
+def dataclass():
+    pass

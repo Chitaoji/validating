@@ -7,7 +7,6 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 """
 
-import inspect
 import sys
 from dataclasses import Field, field
 from functools import partialmethod
@@ -570,10 +569,11 @@ def _resolve_field_type_hint(
 
 
 def _get_owner_localns() -> dict[str, Any] | None:
-    frame = inspect.currentframe()
-    if frame is None or frame.f_back is None:
+    try:
+        frame = sys._getframe(1)
+    except ValueError:
         return None
-    return frame.f_back.f_locals
+    return frame.f_locals
 
 
 def _collect_runtime_localns(
@@ -583,8 +583,14 @@ def _collect_runtime_localns(
     if initial_localns is not None:
         merged.update(initial_localns)
 
-    for frame_info in inspect.stack()[2:]:
-        merged.update(frame_info.frame.f_locals)
+    depth = 2
+    while True:
+        try:
+            frame = sys._getframe(depth)
+        except ValueError:
+            break
+        merged.update(frame.f_locals)
+        depth += 1
 
     return merged or None
 

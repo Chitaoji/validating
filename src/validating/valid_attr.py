@@ -9,6 +9,8 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 from dataclasses import Field, field
 from functools import partialmethod
+import inspect
+import sys
 from types import UnionType
 from typing import (
     Any,
@@ -270,15 +272,43 @@ class AttrValidator:
         self.validator = (lambda _: True) if validator is ... else validator
         self.name: str
         self.type: type
+        self._deferred_type_ctx: dict[str, Any] | None = None
 
     def __set_name__(self, cls: type, name: str) -> None:
         _install_slots_guard(cls)
         self.name = name
-        self.type = _resolve_field_type_hint(cls, name)
+        raw_type_hint = cls.__annotations__.get(name)
+        try:
+            self.type = _resolve_field_type_hint(cls, name)
+        except ValidatorError:
+            if not isinstance(raw_type_hint, str):
+                raise
+            self._deferred_type_ctx = {
+                "owner_cls": cls,
+                "owner_localns": _get_owner_localns(),
+                "raw_type_hint": raw_type_hint,
+            }
+            self.type = Any
         self._validate_allowlist(cls)
         self._validate_default(cls)
 
+    def _ensure_type_resolved(self) -> None:
+        if self._deferred_type_ctx is None:
+            return
+
+        owner_cls = self._deferred_type_ctx["owner_cls"]
+        owner_localns = self._deferred_type_ctx["owner_localns"]
+        localns = _collect_runtime_localns(owner_localns)
+        self.type = _resolve_field_type_hint(
+            owner_cls,
+            self.name,
+            localns=localns,
+        )
+        self._deferred_type_ctx = None
+
     def _validate_default(self, cls: type) -> None:
+        if self._deferred_type_ctx is not None:
+            return
         if self.default_factory is not ...:
             default = self.default_factory()
             mismatch_reason = isoftype(
@@ -318,6 +348,8 @@ class AttrValidator:
             )
 
     def _validate_allowlist(self, cls: type) -> None:
+        if self._deferred_type_ctx is not None:
+            return
         if self.allowlist is ...:
             return
         if not isinstance(self.allowlist, list):
@@ -415,6 +447,7 @@ class AttrValidator:
                     f"argument: {self.name!r}"
                 )
             return
+        self._ensure_type_resolved()
         mismatch_reason = isoftype(value, self.type, self.name)
         if mismatch_reason is not None:
             raise TypeError(
@@ -499,7 +532,12 @@ class AttrValidator:
         del instance.__dict__[self.name]
 
 
-def _resolve_field_type_hint(cls: type, name: str) -> type:
+def _resolve_field_type_hint(
+    cls: type,
+    name: str,
+    *,
+    localns: dict[str, Any] | None = None,
+) -> type:
     if name not in cls.__annotations__:
         return Any
 
@@ -508,7 +546,16 @@ def _resolve_field_type_hint(cls: type, name: str) -> type:
         return raw_type_hint
 
     try:
-        resolved_hints = get_type_hints(cls, include_extras=True)
+        resolved_hints = get_type_hints(
+            cls,
+            globalns=vars(sys.modules[cls.__module__]),
+            localns=localns,
+            include_extras=True,
+        )
+    except NameError as exc:
+        raise ValidatorError(
+            f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
+        ) from exc
     except Exception as exc:  # pragma: no cover - exact exception depends on annotation
         raise ValidatorError(
             f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
@@ -520,6 +567,26 @@ def _resolve_field_type_hint(cls: type, name: str) -> type:
         )
 
     return resolved_hints[name]
+
+
+def _get_owner_localns() -> dict[str, Any] | None:
+    frame = inspect.currentframe()
+    if frame is None or frame.f_back is None:
+        return None
+    return frame.f_back.f_locals
+
+
+def _collect_runtime_localns(
+    initial_localns: dict[str, Any] | None,
+) -> dict[str, Any] | None:
+    merged: dict[str, Any] = {}
+    if initial_localns is not None:
+        merged.update(initial_localns)
+
+    for frame_info in inspect.stack()[2:]:
+        merged.update(frame_info.frame.f_locals)
+
+    return merged or None
 
 
 def isoftype(

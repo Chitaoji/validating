@@ -287,14 +287,23 @@ class TestAttrWithDataclasses(unittest.TestCase):
         with self.assertRaises(TypeError):
             Config(retries="1")
 
-    def test_invalid_string_annotation_raises_for_attr(self):
+    def test_forward_string_annotation_in_local_scope_is_resolved_for_attr(self):
+        @dataclass
+        class Config:
+            retries: "NotAType" = attr()
+
+        class NotAType: ...
+
+        cfg = Config(retries=NotAType())
+        self.assertIsInstance(cfg.retries, NotAType)
+
+    def test_unresolvable_string_annotation_raises_for_attr(self):
+        @dataclass
+        class Config:
+            retries: "MissingType" = attr()
+
         with self.assertRaisesRegex(RuntimeError, r"failed to resolve annotation"):
-
-            @dataclass
-            class Config:
-                retries: "NotAType" = attr()
-
-            class NotAType: ...
+            Config(retries=1)
 
     def test_union_literal_and_collections(self):
         @dataclass

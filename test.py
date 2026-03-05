@@ -294,6 +294,8 @@ class TestAttrWithDataclasses(unittest.TestCase):
             class Config:
                 retries: "NotAType" = attr()
 
+            class NotAType: ...
+
     def test_union_literal_and_collections(self):
         @dataclass
         class ComplexCfg:
@@ -499,6 +501,8 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             @validate
             def add(a: "NotAType") -> int:
                 return a
+
+            class NotAType: ...
 
     def test_validate_works_with_complex_type_hints(self):
         @validate

@@ -2,7 +2,7 @@
 Dataclass helpers for validating.
 
 NOTE: this module is private. All functions and objects are available in the main
-`validating` namespace - use that instead.
+:mod:`validating` namespace - use that instead.
 
 """
 
@@ -40,7 +40,7 @@ def dataclass(
     Differences from the stdlib decorator:
 
     1. Annotated class attributes with direct defaults (for example ``x: int = 1``)
-       are automatically promoted to ``attr(default=1)``.
+       are automatically promoted to :func:`attr` fields using ``attr(default=1)``.
     2. When ``validate_methods=True``, public methods are wrapped by
        :func:`validating.validate`.
 
@@ -109,7 +109,7 @@ def _apply_validating_dataclass(
 
 
 def _decorate_public_methods(cls: type) -> None:
-    """Wrap public instance/static/class methods on ``cls`` with ``validate``."""
+    """Wrap public instance/static/class methods on ``cls`` with :func:`validate`."""
 
     for name, value in cls.__dict__.items():
         if name.startswith("_"):

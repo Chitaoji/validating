@@ -2,7 +2,7 @@
 Contains the core of validating: attr(), dataclass(), etc.
 
 NOTE: this module is private. All functions and objects are available in the main
-`validating` namespace - use that instead.
+:mod:`validating` namespace - use that instead.
 
 """
 

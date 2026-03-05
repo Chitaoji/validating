@@ -339,23 +339,23 @@ class AttrValidator:
         if self.allowlist is not ... and value not in self.allowlist:
             raise ValidatorError(
                 f"invalid {value_name} value for {cls.__name__}.{self.name}: "
-                f"expected value in {self.allowlist!r}, "
+                f"expected {value_name} in {self.allowlist!r}, "
                 f"got {value!r} instead"
             )
         if self.denylist is not ... and value in self.denylist:
             raise ValidatorError(
                 f"invalid {value_name} value for {cls.__name__}.{self.name}: "
-                f"expected value not in {self.denylist!r}, "
+                f"expected {value_name} not in {self.denylist!r}, "
                 f"but got {value!r}"
             )
 
     def _validate_bounds(self, cls: type, value: Any, value_name: str) -> None:
-        expected = self._combined_bounds_expected(self.name)
+        expected = self._combined_bounds_expected(value_name)
         if self.lb is not ... and value < self.lb:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value ≥ {self.lb!r}, "
+                else f"expected {value_name} ≥ {self.lb!r}, "
             )
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
@@ -365,7 +365,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value > {self.slb!r}, "
+                else f"expected {value_name} > {self.slb!r}, "
             )
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
@@ -375,7 +375,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value ≤ {self.ub!r}, "
+                else f"expected {value_name} ≤ {self.ub!r}, "
             )
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
@@ -385,7 +385,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value < {self.sub!r}, "
+                else f"expected {value_name} < {self.sub!r}, "
             )
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
@@ -419,20 +419,20 @@ class AttrValidator:
             if value not in self.allowlist:
                 raise ValueError(
                     f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                    f"expected value in {self.allowlist!r}, got {value!r} instead"
+                    f"expected {self.name} in {self.allowlist!r}, got {value!r} instead"
                 )
         if self.denylist is not ...:
             if value in self.denylist:
                 raise ValueError(
                     f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                    f"expected value not in {self.denylist!r}, but got {value!r}"
+                    f"expected {self.name} not in {self.denylist!r}, but got {value!r}"
                 )
         expected = self._combined_bounds_expected(self.name)
         if self.lb is not ... and value < self.lb:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value ≥ {self.lb!r}, "
+                else f"expected {self.name} ≥ {self.lb!r}, "
             )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
@@ -442,7 +442,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value > {self.slb!r}, "
+                else f"expected {self.name} > {self.slb!r}, "
             )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
@@ -452,7 +452,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value ≤ {self.ub!r}, "
+                else f"expected {self.name} ≤ {self.ub!r}, "
             )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
@@ -462,7 +462,7 @@ class AttrValidator:
             expected_text = (
                 f"expected {expected}, "
                 if expected is not None
-                else f"expected value < {self.sub!r}, "
+                else f"expected {self.name} < {self.sub!r}, "
             )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "

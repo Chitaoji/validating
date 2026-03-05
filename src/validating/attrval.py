@@ -110,7 +110,7 @@ def attr(
         raise ValidatorError(
             f"invalid kw_only type: expected a bool, got {type(kw_only)!r} instead"
         )
-    return field_with_guard(
+    return _field_with_guard(
         default=descriptor,
         init=init,
         repr=repr,
@@ -130,7 +130,7 @@ class _FieldWithGuard(Field):
         return self.default.__set__(instance, value)
 
 
-def field_with_guard(
+def _field_with_guard(
     *,
     default: Any,
     init: bool,

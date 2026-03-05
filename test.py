@@ -278,6 +278,22 @@ class TestAttrWithDataclasses(unittest.TestCase):
         cfg.payload = object()
         self.assertIsNotNone(cfg.payload)
 
+    def test_string_annotation_is_resolved_for_attr(self):
+        @dataclass
+        class Config:
+            retries: "int" = attr()
+
+        self.assertEqual(Config(retries=1).retries, 1)
+        with self.assertRaises(TypeError):
+            Config(retries="1")
+
+    def test_invalid_string_annotation_raises_for_attr(self):
+        with self.assertRaisesRegex(RuntimeError, r"failed to resolve annotation"):
+
+            @dataclass
+            class Config:
+                retries: "NotAType" = attr()
+
     def test_union_literal_and_collections(self):
         @dataclass
         class ComplexCfg:
@@ -467,6 +483,22 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             collect(1, "2", key="v")
         with self.assertRaises(TypeError):
             collect(1, 2, key=3)
+
+    def test_validate_resolves_string_annotations(self):
+        @validate
+        def add(a: "int", b: "int") -> int:
+            return a + b
+
+        self.assertEqual(add(1, 2), 3)
+        with self.assertRaises(TypeError):
+            add("1", 2)
+
+    def test_validate_raises_for_unresolvable_string_annotation(self):
+        with self.assertRaisesRegex(TypeError, r"failed to resolve annotation"):
+
+            @validate
+            def add(a: "NotAType") -> int:
+                return a
 
     def test_validate_works_with_complex_type_hints(self):
         @validate

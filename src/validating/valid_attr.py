@@ -10,7 +10,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 from dataclasses import Field, field
 from functools import partialmethod
 from types import UnionType
-from typing import Any, Callable, Literal, Optional, Union, get_args, get_origin
+from typing import Any, Callable, Literal, Optional, Union, get_args, get_origin, get_type_hints
 
 __all__ = ["attr"]
 
@@ -265,10 +265,7 @@ class AttrValidator:
     def __set_name__(self, cls: type, name: str) -> None:
         _install_slots_guard(cls)
         self.name = name
-        if name in cls.__annotations__:
-            self.type = cls.__annotations__[name]
-        else:
-            self.type = Any
+        self.type = _resolve_field_type_hint(cls, name)
         self._validate_allowlist(cls)
         self._validate_default(cls)
 
@@ -491,6 +488,31 @@ class AttrValidator:
 
     def __delete__(self, instance: object) -> None:
         del instance.__dict__[self.name]
+
+
+def _resolve_field_type_hint(cls: type, name: str) -> type:
+    if name not in cls.__annotations__:
+        return Any
+
+    raw_type_hint = cls.__annotations__[name]
+    if not isinstance(raw_type_hint, str):
+        return raw_type_hint
+
+    try:
+        resolved_hints = get_type_hints(cls, include_extras=True)
+    except Exception as exc:  # pragma: no cover - exact exception depends on annotation
+        raise ValidatorError(
+            f"failed to resolve annotation for {cls.__name__}.{name}: "
+            f"{raw_type_hint!r}"
+        ) from exc
+
+    if name not in resolved_hints:
+        raise ValidatorError(
+            f"failed to resolve annotation for {cls.__name__}.{name}: "
+            f"{raw_type_hint!r}"
+        )
+
+    return resolved_hints[name]
 
 
 def isoftype(

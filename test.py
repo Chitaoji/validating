@@ -504,7 +504,8 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         except ValueError as exc:
             self.assertEqual(
                 str(exc),
-                "invalid type for argument 'a' of check: expected a > 1, got 1 instead",
+                "invalid value for argument 'a' of check: "
+                "expected a > 1, got 1 instead",
             )
             tb_text = "".join(traceback.format_tb(exc.__traceback__))
             self.assertRegex(tb_text, r"assert a > 1")
@@ -526,11 +527,14 @@ class TestValidateFunctionDecorator(unittest.TestCase):
     def test_validate_converts_parenthesized_assertion_to_value_error(self):
         @validate
         def check(a: int) -> int:
-            assert (a > 1)
+            assert a > 1
             return a
 
         self.assertEqual(check(2), 2)
-        with self.assertRaisesRegex(ValueError, r"expected \(a > 1\), got 1 instead"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "invalid value for argument 'a' of check: expected (a > 1), got 1 instead",
+        ):
             check(1)
 
     def test_validate_converts_chained_assertion_with_argument_in_middle(self):
@@ -540,7 +544,11 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             return a
 
         self.assertEqual(check(1.5), 1.5)
-        with self.assertRaisesRegex(ValueError, r"expected 1 < a < 2, got 3\.0 instead"):
+        with self.assertRaisesRegex(
+            ValueError,
+            "invalid value for argument 'a' of check: "
+            "expected 1 < a < 2, got 3.0 instead",
+        ):
             check(3.0)
 
     def test_validate_converts_chained_assertion_with_argument_on_right(self):
@@ -556,22 +564,19 @@ class TestValidateFunctionDecorator(unittest.TestCase):
     def test_validate_converts_multiline_assertion_to_value_error(self):
         @validate
         def check(a: float) -> float:
-            assert (
-                1
-                < a
-                < 2
-            )
+            assert 1 < a < 2
             return a
 
         self.assertEqual(check(1.5), 1.5)
-        with self.assertRaisesRegex(ValueError, r"expected 1 < a < 2, got 3\.0 instead"):
+        with self.assertRaisesRegex(
+            ValueError, r"expected 1 < a < 2, got 3\.0 instead"
+        ):
             check(3.0)
 
     def test_validate_converts_parenthesized_split_line_assertion_to_value_error(self):
         @validate
         def check(a: int) -> int:
-            assert (a >=
-                    10)
+            assert a >= 10
             return a
 
         self.assertEqual(check(10), 10)
@@ -581,8 +586,7 @@ class TestValidateFunctionDecorator(unittest.TestCase):
     def test_validate_converts_backslash_split_line_assertion_to_value_error(self):
         @validate
         def check(a: int) -> int:
-            assert a >= \
-                10
+            assert a >= 10
             return a
 
         self.assertEqual(check(10), 10)

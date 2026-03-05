@@ -70,7 +70,7 @@ def _assertion_error_to_value_error(
         message = _assertion_expression_from_traceback(exc, func)
         if message is None:
             return None
-        return _value_error_for_assertion_message(message, arguments)
+        return _value_error_for_assertion_message(message, arguments, func)
 
     return None
 
@@ -153,7 +153,7 @@ def _normalize_assertion_expression(expression: str) -> str:
 
 
 def _value_error_for_assertion_message(
-    message: str, arguments: dict[str, Any]
+    message: str, arguments: dict[str, Any], func: Callable[..., Any]
 ) -> ValueError | None:
     if not message:
         return None
@@ -176,7 +176,10 @@ def _value_error_for_assertion_message(
         return None
 
     name = names[0]
-    return ValueError(f"expected {message}, got {arguments[name]!r} instead")
+    return ValueError(
+        f"invalid type for argument {name!r} of {func.__name__}: "
+        f"expected {message}, got {arguments[name]!r} instead"
+    )
 
 
 def _validate_bound_arguments(

@@ -156,6 +156,14 @@ class TestAttrWithDataclasses(unittest.TestCase):
 
         self.assertEqual(RangeCfg(score=60).score, 60)
 
+    def test_bounds_validation_error_contains_combined_expectation(self):
+        @dataclass
+        class RangeCfg:
+            score: int = attr(lb=1, ub=2)
+
+        with self.assertRaisesRegex(ValueError, r"expected 1 <= x <= 2"):
+            RangeCfg(score=0)
+
     def test_strict_bounds_validation(self):
         @dataclass
         class RangeCfg:
@@ -168,6 +176,14 @@ class TestAttrWithDataclasses(unittest.TestCase):
             RangeCfg(score=100)
 
         self.assertEqual(RangeCfg(score=60).score, 60)
+
+    def test_strict_bounds_error_contains_combined_expectation(self):
+        @dataclass
+        class RangeCfg:
+            score: int = attr(slb=1, ub=2)
+
+        with self.assertRaisesRegex(ValueError, r"expected 1 < x <= 2"):
+            RangeCfg(score=1)
 
     def test_custom_validator(self):
         @dataclass

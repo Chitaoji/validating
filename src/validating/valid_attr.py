@@ -371,6 +371,15 @@ class AttrValidator:
                 f"expected value < {self.sub!r}, got {value!r} (>= {self.sub!r}) instead"
             )
 
+    def _combined_bounds_expected(self) -> str | None:
+        lower = self.lb if self.lb is not ... else self.slb
+        upper = self.ub if self.ub is not ... else self.sub
+        if lower is ... or upper is ...:
+            return None
+        lower_op = "<=" if self.lb is not ... else "<"
+        upper_op = "<=" if self.ub is not ... else "<"
+        return f"{lower!r} {lower_op} x {upper_op} {upper!r}"
+
     def __set__(self, instance: object, value: Any) -> None:
         if isinstance(value, self.__class__):
             if self.default is ... and self.default_factory is ...:
@@ -397,25 +406,46 @@ class AttrValidator:
                     f"invalid value for {instance.__class__.__name__}.{self.name}: "
                     f"expected value not in {self.denylist!r}, but got {value!r}"
                 )
+        expected = self._combined_bounds_expected()
         if self.lb is not ... and value < self.lb:
+            expected_text = (
+                f"expected {expected}, "
+                if expected is not None
+                else f"expected value >= {self.lb!r}, "
+            )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value >= {self.lb!r}, got {value!r} (< {self.lb!r}) instead"
+                f"{expected_text}got {value!r} (< {self.lb!r}) instead"
             )
         if self.slb is not ... and value <= self.slb:
+            expected_text = (
+                f"expected {expected}, "
+                if expected is not None
+                else f"expected value > {self.slb!r}, "
+            )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value > {self.slb!r}, got {value!r} (<= {self.lb!r}) instead"
+                f"{expected_text}got {value!r} (<= {self.slb!r}) instead"
             )
         if self.ub is not ... and value > self.ub:
+            expected_text = (
+                f"expected {expected}, "
+                if expected is not None
+                else f"expected value <= {self.ub!r}, "
+            )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value <= {self.ub!r}, got {value!r} (> {self.ub!r}) instead"
+                f"{expected_text}got {value!r} (> {self.ub!r}) instead"
             )
         if self.sub is not ... and value >= self.sub:
+            expected_text = (
+                f"expected {expected}, "
+                if expected is not None
+                else f"expected value < {self.sub!r}, "
+            )
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value < {self.sub!r}, got {value!r} (>= {self.sub!r}) instead"
+                f"{expected_text}got {value!r} (>= {self.sub!r}) instead"
             )
         if not self.validator(value):
             raise ValueError(

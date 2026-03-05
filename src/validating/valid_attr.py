@@ -353,22 +353,22 @@ class AttrValidator:
         if self.lb is not ... and value < self.lb:
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
-                f"expected value >= {self.lb!r}, got {value!r} instead"
+                f"expected value >= {self.lb!r}, got {value!r} (< {self.lb!r}) instead"
             )
         if self.slb is not ... and value <= self.slb:
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
-                f"expected value > {self.slb!r}, got {value!r} instead"
+                f"expected value > {self.slb!r}, got {value!r} (<= {self.slb!r}) instead"
             )
         if self.ub is not ... and value > self.ub:
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
-                f"expected value <= {self.ub!r}, got {value!r} instead"
+                f"expected value <= {self.ub!r}, got {value!r} (> {self.ub!r}) instead"
             )
         if self.sub is not ... and value >= self.sub:
             raise ValidatorError(
                 f"invalid value for {value_name} of {cls.__name__}.{self.name}: "
-                f"expected value < {self.sub!r}, got {value!r} instead"
+                f"expected value < {self.sub!r}, got {value!r} (>= {self.sub!r}) instead"
             )
 
     def __set__(self, instance: object, value: Any) -> None:
@@ -400,22 +400,22 @@ class AttrValidator:
         if self.lb is not ... and value < self.lb:
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value >= {self.lb!r}, got {value!r} instead"
+                f"expected value >= {self.lb!r}, got {value!r} (< {self.lb!r}) instead"
             )
         if self.slb is not ... and value <= self.slb:
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value > {self.slb!r}, got {value!r} instead"
+                f"expected value > {self.slb!r}, got {value!r} (<= {self.lb!r}) instead"
             )
         if self.ub is not ... and value > self.ub:
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value <= {self.ub!r}, got {value!r} instead"
+                f"expected value <= {self.ub!r}, got {value!r} (> {self.ub!r}) instead"
             )
         if self.sub is not ... and value >= self.sub:
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"expected value < {self.sub!r}, got {value!r} instead"
+                f"expected value < {self.sub!r}, got {value!r} (>= {self.sub!r}) instead"
             )
         if not self.validator(value):
             raise ValueError(

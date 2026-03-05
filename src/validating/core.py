@@ -1,5 +1,5 @@
 """
-Contains the core of validating: attr(), dataclass(), etc.
+Contains the core of validating: attr(), dataclass(), validate(), etc.
 
 NOTE: this module is private. All functions and objects are available in the main
 :mod:`validating` namespace - use that instead.

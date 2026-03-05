@@ -526,6 +526,8 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, r"failed to resolve annotation"):
             add(1)
 
+        class MissingType: ...
+
     def test_validate_works_with_complex_type_hints(self):
         @validate
         def configure(mode: Literal["dev", "prod"], opts: dict[str, int]):

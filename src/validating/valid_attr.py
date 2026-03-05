@@ -8,6 +8,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 """
 
 from dataclasses import Field, field
+from functools import partialmethod
 from types import UnionType
 from typing import Any, Callable, Literal, Optional, Union, get_args, get_origin
 
@@ -166,16 +167,23 @@ def _install_slots_guard(cls: type) -> None:
         return
     original_post_init = getattr(cls, "__post_init__", None)
 
-    def __post_init__(self: object, *args: Any, **kwargs: Any) -> None:
-        if not hasattr(self, "__dict__"):
-            raise ValidatorError(
-                "dataclasses with slots=True are not supported by validattr"
-            )
-        if original_post_init is not None:
-            original_post_init(self, *args, **kwargs)
-
-    cls.__post_init__ = __post_init__
+    cls.__post_init__ = partialmethod(
+        _slots_guard_post_init,
+        original_post_init=original_post_init,
+    )
     setattr(cls, "__validattr_slots_guard_installed__", True)
+
+
+def _slots_guard_post_init(
+    self: object,
+    *args: Any,
+    original_post_init: Callable[..., Any] | None,
+    **kwargs: Any,
+) -> None:
+    if not hasattr(self, "__dict__"):
+        raise ValidatorError("dataclasses with slots=True are not supported by validattr")
+    if original_post_init is not None:
+        original_post_init(self, *args, **kwargs)
 
 
 class AttrValidator:

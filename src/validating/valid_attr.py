@@ -42,23 +42,23 @@ def attr(
     Parameters
     ----------
     default : Any, optional
-        Default value, by default Ellipsis.
+        Default value, by default ...
     default_factory : Callable[[], Any], optional
-        Callable used to generate a default value lazily, by default Ellipsis.
+        Callable used to generate a default value lazily, by default ...
     allowlist : list, optional
-        Allowed values, by default Ellipsis.
+        Allowed values, by default ...
     denylist : list, optional
-        Forbidden values, by default Ellipsis.
+        Forbidden values, by default ...
     lb : Any, optional
-        Lower bound (inclusive), by default Ellipsis.
+        Lower bound (inclusive), by default ...
     slb : Any, optional
-        Strict lower bound (exclusive), by default Ellipsis.
+        Strict lower bound (exclusive), by default ...
     ub : Any, optional
-        Upper bound (inclusive), by default Ellipsis.
+        Upper bound (inclusive), by default ...
     sub : Any, optional
-        Strict upper bound (exclusive), by default Ellipsis.
+        Strict upper bound (exclusive), by default ...
     validator : Callable[[Any], bool], optional
-        Custom validator function, by default Ellipsis.
+        Custom validator function, by default ...
     init : bool, optional
         Whether this field should be included as a generated ``__init__()``
         parameter when used with ``dataclasses.dataclass``, by default True.
@@ -498,7 +498,7 @@ def isoftype(
         return None
 
     if origin is tuple:
-        if len(args) == 2 and args[1] is Ellipsis:
+        if len(args) == 2 and args[1] is ...:
             (elem_type, _) = args
             if not isinstance(value, tuple):
                 return f"{path} a tuple, got {type(value)!r} instead"

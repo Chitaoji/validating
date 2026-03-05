@@ -235,7 +235,7 @@ def _validate_bound_arguments(
                     item,
                     annotation,
                     name,
-                    path=f"{name}[{idx}] expected",
+                    path=f"{name}[{idx}]",
                 )
                 if mismatch_reason is not None:
                     raise TypeError(
@@ -250,7 +250,7 @@ def _validate_bound_arguments(
                     item,
                     annotation,
                     name,
-                    path=f"{name}[{key!r}] expected",
+                    path=f"{name}[{key!r}]",
                 )
                 if mismatch_reason is not None:
                     raise TypeError(
@@ -259,7 +259,7 @@ def _validate_bound_arguments(
                     )
             continue
 
-        mismatch_reason = isoftype(value, annotation, name, path="expected")
+        mismatch_reason = isoftype(value, annotation, name)
         if mismatch_reason is not None:
             raise TypeError(
                 f"invalid type for argument {name!r} of {func.__name__}: "

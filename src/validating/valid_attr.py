@@ -276,7 +276,7 @@ class AttrValidator:
                 default,
                 self.type,
                 self.name,
-                path="default_factory() expected",
+                path="default_factory()",
             )
             if mismatch_reason is not None:
                 raise ValidatorError(
@@ -289,7 +289,7 @@ class AttrValidator:
             return
         if self.default is ...:
             return
-        mismatch_reason = isoftype(self.default, self.type, self.name, path="expected")
+        mismatch_reason = isoftype(self.default, self.type, self.name, path="")
         if mismatch_reason is not None:
             raise ValidatorError(
                 f"invalid default type for {cls.__name__}.{self.name}: "
@@ -321,7 +321,7 @@ class AttrValidator:
                 item,
                 self.type,
                 self.name,
-                path=f"allowlist[{idx}] expected",
+                path=f"allowlist[{idx}]",
             )
             if mismatch_reason is not None:
                 raise ValidatorError(
@@ -515,9 +515,7 @@ def _resolve_field_type_hint(cls: type, name: str) -> type:
     return resolved_hints[name]
 
 
-def isoftype(
-    value: object, type_hint: type, name: str, path: str = "expected"
-) -> Optional[str]:
+def isoftype(value: object, type_hint: type, name: str, path: str = "") -> Optional[str]:
     """
     Returns a detailed mismatch message when ``value`` does not satisfy ``type_hint``.
 
@@ -547,25 +545,28 @@ def isoftype(
     if origin is None:
         if isinstance(value, type_hint):
             return None
-        return f"{path} {type_hint!r}, got {type(value)!r} instead"
+        return _format_isoftype_error(path, f"{type_hint!r}, got {type(value)!r} instead")
 
     if origin is Union or origin is UnionType:
         union_errors = [isoftype(value, arg, name, path) for arg in args]
         if any(error is None for error in union_errors):
             return None
-        return f"{path} one of {args}, got {value.__class__!r} instead"
+        return _format_isoftype_error(
+            path,
+            f"one of {args}, got {value.__class__!r} instead",
+        )
 
     if origin is Literal:
         if value in args:
             return None
-        return f"{path} one of {args!r}, got {value!r} instead"
+        return _format_isoftype_error(path, f"one of {args!r}, got {value!r} instead")
 
     if origin is list:
         (elem_type,) = args
         if not isinstance(value, list):
-            return f"{path} a list, got {type(value)!r} instead"
+            return _format_isoftype_error(path, f"a list, got {type(value)!r} instead")
         for idx, elem in enumerate(value):
-            elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}] expected")
+            elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}]")
             if elem_error is not None:
                 return elem_error
         return None
@@ -574,20 +575,21 @@ def isoftype(
         if len(args) == 2 and args[1] is ...:
             (elem_type, _) = args
             if not isinstance(value, tuple):
-                return f"{path} a tuple, got {type(value)!r} instead"
+                return _format_isoftype_error(path, f"a tuple, got {type(value)!r} instead")
             for idx, elem in enumerate(value):
-                elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}] expected")
+                elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}]")
                 if elem_error is not None:
                     return elem_error
             return None
 
         if not isinstance(value, tuple) or len(value) != len(args):
-            return (
-                f"{path} a tuple with {len(args)} elements, got {type(value)!r} with "
-                f"length {len(value) if isinstance(value, tuple) else 'N/A'} instead"
+            return _format_isoftype_error(
+                path,
+                f"a tuple with {len(args)} elements, got {type(value)!r} with "
+                f"length {len(value) if isinstance(value, tuple) else 'N/A'} instead",
             )
         for idx, (elem, elem_type) in enumerate(zip(value, args)):
-            elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}] expected")
+            elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}]")
             if elem_error is not None:
                 return elem_error
         return None
@@ -595,14 +597,14 @@ def isoftype(
     if origin is dict:
         key_t, val_t = args
         if not isinstance(value, dict):
-            return f"{path} a dict, got {type(value)!r} instead"
+            return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
         for key, val in value.items():
             key_error = isoftype(
-                key, key_t, name, f"{name}.keys() element {key!r} expected"
+                key, key_t, name, f"{name}.keys() element {key!r}"
             )
             if key_error is not None:
                 return key_error
-            val_error = isoftype(val, val_t, name, f"{name}[{key!r}] expected")
+            val_error = isoftype(val, val_t, name, f"{name}[{key!r}]")
             if val_error is not None:
                 return val_error
         return None
@@ -610,9 +612,10 @@ def isoftype(
     if origin is set:
         (elem_type,) = args
         if not isinstance(value, set):
-            return f"{path} a set, got {type(value)!r} instead"
+            return _format_isoftype_error(path, f"a set, got {type(value)!r} instead")
         for elem in value:
-            elem_error = isoftype(elem, elem_type, name, f"{path} element {elem!r}")
+            elem_path = f"{path} element {elem!r}" if path else f"element {elem!r}"
+            elem_error = isoftype(elem, elem_type, name, elem_path)
             if elem_error is not None:
                 return elem_error
         return None
@@ -621,3 +624,9 @@ def isoftype(
 
 
 class ValidatorError(RuntimeError): ...
+
+
+def _format_isoftype_error(path: str, detail: str) -> str:
+    if path:
+        return f"{path} expected {detail}"
+    return f"expected {detail}"

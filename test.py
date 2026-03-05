@@ -496,8 +496,22 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             return a
 
         self.assertEqual(check(2), 2)
-        with self.assertRaisesRegex(ValueError, r"expected a > 1, got 1 instead"):
+        with self.assertRaisesRegex(ValueError, r"expected a > 1, got 1 instead") as ctx:
             check(1)
+
+        self.assertRegex(str(ctx.exception), r"history: AssertionError at .+:\d+: assert a > 1")
+
+    def test_validate_conversion_hides_assertion_error_context(self):
+        @validate
+        def check(a: int) -> int:
+            assert a > 1
+            return a
+
+        with self.assertRaises(ValueError) as context:
+            check(1)
+
+        self.assertIsNone(context.exception.__cause__)
+        self.assertTrue(context.exception.__suppress_context__)
 
     def test_validate_preserves_assertion_for_non_argument_expression(self):
         @validate

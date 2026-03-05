@@ -707,10 +707,10 @@ def isoftype(
     raise NotImplementedError(f"Unsupported type hint: {type_hint}")
 
 
-class ValidatorError(RuntimeError): ...
-
-
 def _format_isoftype_error(path: str, detail: str) -> str:
     if path:
         return f"{path} expected {detail}"
     return f"expected {detail}"
+
+
+class ValidatorError(RuntimeError): ...

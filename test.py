@@ -74,6 +74,30 @@ class TestAttrWithDataclasses(unittest.TestCase):
 
         self.assertNotEqual(Config(), Config())
 
+    def test_validating_dataclass_does_not_double_wrap_validated_methods(self):
+        @validating_dataclass(validate_methods=True)
+        class Config:
+            @validate
+            def method(self, x: int) -> int:
+                return x
+
+            @staticmethod
+            @validate
+            def parse(x: int) -> int:
+                return x
+
+            @classmethod
+            @validate
+            def from_count(cls, x: int):
+                return cls()
+
+        self.assertEqual(Config.method.__wrapped__.__name__, "method")
+        self.assertEqual(Config.parse.__wrapped__.__name__, "parse")
+        self.assertEqual(Config.from_count.__func__.__wrapped__.__name__, "from_count")
+        self.assertFalse(hasattr(Config.method.__wrapped__, "__wrapped__"))
+        self.assertFalse(hasattr(Config.parse.__wrapped__, "__wrapped__"))
+        self.assertFalse(hasattr(Config.from_count.__func__.__wrapped__, "__wrapped__"))
+
     def test_default_value_is_lazily_applied(self):
         @dataclass
         class Config:

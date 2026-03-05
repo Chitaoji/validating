@@ -52,7 +52,7 @@ def dataclass[T](
     weakref_slot: bool = False,
     validate_methods: bool = True,
 ) -> Callable[[type[T]], type[T]]: ...
-def dataclas(
+def dataclass(
     cls: type | None = None,
     /,
     *,

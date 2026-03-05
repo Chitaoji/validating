@@ -14,6 +14,8 @@ from .valid_attr import isoftype
 
 __all__ = ["validate"]
 
+_VALIDATE_MARKER = "__validating_is_validate_wrapped__"
+
 
 def validate[T](func: T) -> T:
     """
@@ -33,6 +35,9 @@ def validate[T](func: T) -> T:
     if not callable(func):
         raise TypeError(f"validate() expected a callable, got {type(func)!r} instead")
 
+    if getattr(func, _VALIDATE_MARKER, False):
+        return func
+
     sig = signature(func)
 
     @wraps(func)
@@ -40,6 +45,8 @@ def validate[T](func: T) -> T:
         bound = sig.bind(*args, **kwargs)
         _validate_bound_arguments(func, sig, bound.arguments)
         return func(*args, **kwargs)
+
+    setattr(wrapper, _VALIDATE_MARKER, True)
 
     return wrapper
 

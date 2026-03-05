@@ -32,7 +32,7 @@ def dataclass(
     kw_only: bool = False,
     slots: bool = False,
     weakref_slot: bool = False,
-    validate_methods: bool = False,
+    validate_methods: bool = True,
 ) -> type | Callable[[type], type]:
     """
     Dataclass decorator compatible with `dataclasses.dataclass`.

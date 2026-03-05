@@ -308,7 +308,7 @@ class AttrValidator:
         if not self.validator(value):
             raise ValidatorError(
                 f"invalid {value_name} value for {cls.__name__}.{self.name}: "
-                f"failed custom validator for value {value!r}"
+                f"failed custom validator for {self.name}={value!r}"
             )
 
     def _validate_allowlist(self, cls: type) -> None:
@@ -471,7 +471,7 @@ class AttrValidator:
         if not self.validator(value):
             raise ValueError(
                 f"invalid value for {instance.__class__.__name__}.{self.name}: "
-                f"failed custom validator for value {value!r}"
+                f"failed custom validator for {self.name}={value!r}"
             )
         instance.__dict__[self.name] = value
 

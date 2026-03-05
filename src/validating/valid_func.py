@@ -8,6 +8,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 from functools import wraps
 from inspect import Parameter, Signature, signature
+import re
 from typing import Any, Callable
 
 from .valid_attr import isoftype
@@ -44,11 +45,32 @@ def validate[T](func: T) -> T:
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         bound = sig.bind(*args, **kwargs)
         _validate_bound_arguments(func, sig, bound.arguments)
-        return func(*args, **kwargs)
+        try:
+            return func(*args, **kwargs)
+        except AssertionError as exc:
+            raise _assertion_error_to_value_error(exc, bound.arguments) from exc
 
     setattr(wrapper, _VALIDATE_MARKER, True)
 
     return wrapper
+
+
+def _assertion_error_to_value_error(
+    exc: AssertionError, arguments: dict[str, Any]
+) -> ValueError:
+    if not exc.args or not isinstance(exc.args[0], str):
+        return ValueError(*exc.args)
+
+    message = exc.args[0]
+    match = re.match(r"\s*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message)
+    if match is None:
+        return ValueError(*exc.args)
+
+    name = match.group(1)
+    if name not in arguments:
+        return ValueError(*exc.args)
+
+    return ValueError(f"expected {message}, got {arguments[name]!r} instead")
 
 
 def _validate_bound_arguments(

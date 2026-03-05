@@ -10,7 +10,16 @@ NOTE: this module is private. All functions and objects are available in the mai
 from dataclasses import Field, field
 from functools import partialmethod
 from types import UnionType
-from typing import Any, Callable, Literal, Optional, Union, get_args, get_origin, get_type_hints
+from typing import (
+    Any,
+    Callable,
+    Literal,
+    Optional,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+)
 
 __all__ = ["attr"]
 
@@ -502,20 +511,20 @@ def _resolve_field_type_hint(cls: type, name: str) -> type:
         resolved_hints = get_type_hints(cls, include_extras=True)
     except Exception as exc:  # pragma: no cover - exact exception depends on annotation
         raise ValidatorError(
-            f"failed to resolve annotation for {cls.__name__}.{name}: "
-            f"{raw_type_hint!r}"
+            f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
         ) from exc
 
     if name not in resolved_hints:
         raise ValidatorError(
-            f"failed to resolve annotation for {cls.__name__}.{name}: "
-            f"{raw_type_hint!r}"
+            f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
         )
 
     return resolved_hints[name]
 
 
-def isoftype(value: object, type_hint: type, name: str, path: str = "") -> Optional[str]:
+def isoftype(
+    value: object, type_hint: type, name: str, path: str = ""
+) -> Optional[str]:
     """
     Returns a detailed mismatch message when ``value`` does not satisfy ``type_hint``.
 
@@ -545,7 +554,9 @@ def isoftype(value: object, type_hint: type, name: str, path: str = "") -> Optio
     if origin is None:
         if isinstance(value, type_hint):
             return None
-        return _format_isoftype_error(path, f"{type_hint!r}, got {type(value)!r} instead")
+        return _format_isoftype_error(
+            path, f"{type_hint!r}, got {type(value)!r} instead"
+        )
 
     if origin is Union or origin is UnionType:
         union_errors = [isoftype(value, arg, name, path) for arg in args]
@@ -575,7 +586,9 @@ def isoftype(value: object, type_hint: type, name: str, path: str = "") -> Optio
         if len(args) == 2 and args[1] is ...:
             (elem_type, _) = args
             if not isinstance(value, tuple):
-                return _format_isoftype_error(path, f"a tuple, got {type(value)!r} instead")
+                return _format_isoftype_error(
+                    path, f"a tuple, got {type(value)!r} instead"
+                )
             for idx, elem in enumerate(value):
                 elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}]")
                 if elem_error is not None:
@@ -599,9 +612,7 @@ def isoftype(value: object, type_hint: type, name: str, path: str = "") -> Optio
         if not isinstance(value, dict):
             return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
         for key, val in value.items():
-            key_error = isoftype(
-                key, key_t, name, f"{name}.keys() element {key!r}"
-            )
+            key_error = isoftype(key, key_t, name, f"{name}.keys() element {key!r}")
             if key_error is not None:
                 return key_error
             val_error = isoftype(val, val_t, name, f"{name}[{key!r}]")

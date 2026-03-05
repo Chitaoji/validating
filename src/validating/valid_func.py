@@ -15,7 +15,7 @@ from textwrap import dedent
 from traceback import TracebackException
 from typing import Any, Callable, get_type_hints
 
-from .valid_attr import isoftype
+from .valid_attr import _collect_runtime_localns, _get_owner_localns, isoftype
 
 __all__ = ["validate"]
 
@@ -53,11 +53,22 @@ def validate[T](func: T) -> T:
         return func
 
     sig = signature(func)
-    resolved_annotations = _resolve_signature_annotations(func, sig)
+    owner_localns = _get_owner_localns()
+    resolved_annotations, deferred_annotations = _resolve_signature_annotations(
+        func,
+        sig,
+        localns=owner_localns,
+    )
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         bound = sig.bind(*args, **kwargs)
+        _resolve_deferred_signature_annotations(
+            func,
+            resolved_annotations,
+            deferred_annotations,
+            initial_localns=owner_localns,
+        )
         _validate_bound_arguments(func, sig, bound.arguments, resolved_annotations)
         try:
             return func(*args, **kwargs)
@@ -193,10 +204,20 @@ def _value_error_for_assertion_message(
 def _resolve_signature_annotations(
     func: Callable[..., Any],
     sig: Signature,
-) -> dict[str, Any]:
+    *,
+    localns: dict[str, Any] | None = None,
+) -> tuple[dict[str, Any], dict[str, str]]:
     resolved_annotations: dict[str, Any] = {}
+    deferred_annotations: dict[str, str] = {}
+
+    globalns = vars(__import__(func.__module__, fromlist=["*"]))
     try:
-        type_hints = get_type_hints(func, include_extras=True)
+        type_hints = get_type_hints(
+            func,
+            globalns=globalns,
+            localns=localns,
+            include_extras=True,
+        )
     except Exception:
         type_hints = {}
 
@@ -208,13 +229,49 @@ def _resolve_signature_annotations(
             resolved_annotations[name] = type_hints[name]
             continue
         if isinstance(annotation, str):
-            raise TypeError(
-                f"failed to resolve annotation for argument {name!r} of "
-                f"{func.__name__}: {annotation!r}"
-            )
+            deferred_annotations[name] = annotation
+            continue
         resolved_annotations[name] = annotation
 
-    return resolved_annotations
+    return resolved_annotations, deferred_annotations
+
+
+def _resolve_deferred_signature_annotations(
+    func: Callable[..., Any],
+    resolved_annotations: dict[str, Any],
+    deferred_annotations: dict[str, str],
+    *,
+    initial_localns: dict[str, Any] | None,
+) -> None:
+    if not deferred_annotations:
+        return
+
+    localns = _collect_runtime_localns(initial_localns)
+    globalns = vars(__import__(func.__module__, fromlist=["*"]))
+    try:
+        type_hints = get_type_hints(
+            func,
+            globalns=globalns,
+            localns=localns,
+            include_extras=True,
+        )
+    except Exception:
+        type_hints = {}
+
+    unresolved_names: list[str] = []
+    for name, raw_annotation in deferred_annotations.items():
+        if name in type_hints:
+            resolved_annotations[name] = type_hints[name]
+            continue
+        unresolved_names.append(f"{name!r}: {raw_annotation!r}")
+
+    if unresolved_names:
+        joined = ", ".join(unresolved_names)
+        raise TypeError(
+            f"failed to resolve annotation for argument(s) of {func.__name__}: {joined}"
+        )
+
+    deferred_annotations.clear()
 
 
 def _validate_bound_arguments(

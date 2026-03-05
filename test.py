@@ -506,14 +506,25 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaises(TypeError):
             add("1", 2)
 
+    def test_validate_resolves_forward_string_annotations_in_local_scope(self):
+        @validate
+        def build(value: "LaterType") -> "LaterType":
+            return value
+
+        class LaterType: ...
+
+        instance = LaterType()
+        self.assertIs(build(instance), instance)
+        with self.assertRaises(TypeError):
+            build(1)
+
     def test_validate_raises_for_unresolvable_string_annotation(self):
+        @validate
+        def add(a: "MissingType") -> int:
+            return a
+
         with self.assertRaisesRegex(TypeError, r"failed to resolve annotation"):
-
-            @validate
-            def add(a: "LaterType") -> int:
-                return a
-
-            class LaterType: ...
+            add(1)
 
     def test_validate_works_with_complex_type_hints(self):
         @validate

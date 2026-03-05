@@ -15,7 +15,7 @@ from .valid_attr import isoftype
 __all__ = ["validate"]
 
 
-def validate(func: Callable[..., Any]) -> Callable[..., Any]:
+def validate[T](func: T) -> T:
     """
     Decorator that validates function arguments against type annotations.
 

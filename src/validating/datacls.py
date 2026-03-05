@@ -10,7 +10,7 @@ from dataclasses import Field
 from dataclasses import dataclass as _stdlib_dataclass
 from functools import partial
 from inspect import signature
-from typing import Any, Callable
+from typing import Any, Callable, overload
 
 from .valid_attr import AttrValidator, attr
 from .valid_func import validate
@@ -18,7 +18,41 @@ from .valid_func import validate
 __all__ = ["dataclass"]
 
 
-def dataclass(
+@overload
+def dataclass[T](
+    cls: type[T] = None,
+    /,
+    *,
+    init: bool = True,
+    repr: bool = True,
+    eq: bool = True,
+    order: bool = False,
+    unsafe_hash: bool = False,
+    frozen: bool = False,
+    match_args: bool = True,
+    kw_only: bool = False,
+    slots: bool = False,
+    weakref_slot: bool = False,
+    validate_methods: bool = True,
+) -> type[T]: ...
+@overload
+def dataclass[T](
+    cls: None = None,
+    /,
+    *,
+    init: bool = True,
+    repr: bool = True,
+    eq: bool = True,
+    order: bool = False,
+    unsafe_hash: bool = False,
+    frozen: bool = False,
+    match_args: bool = True,
+    kw_only: bool = False,
+    slots: bool = False,
+    weakref_slot: bool = False,
+    validate_methods: bool = True,
+) -> Callable[[type[T]], type[T]]: ...
+def dataclas(
     cls: type | None = None,
     /,
     *,

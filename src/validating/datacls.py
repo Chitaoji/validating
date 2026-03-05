@@ -33,7 +33,7 @@ def dataclass[T](
     kw_only: bool = False,
     slots: bool = False,
     weakref_slot: bool = False,
-    validate_methods: bool = True,
+    validate_methods: bool = False,
 ) -> type[T]: ...
 @overload
 def dataclass[T](
@@ -50,7 +50,7 @@ def dataclass[T](
     kw_only: bool = False,
     slots: bool = False,
     weakref_slot: bool = False,
-    validate_methods: bool = True,
+    validate_methods: bool = False,
 ) -> Callable[[type[T]], type[T]]: ...
 def dataclass(
     cls: type | None = None,
@@ -66,7 +66,7 @@ def dataclass(
     kw_only: bool = False,
     slots: bool = False,
     weakref_slot: bool = False,
-    validate_methods: bool = True,
+    validate_methods: bool = False,
 ) -> type | Callable[[type], type]:
     """
     Dataclass decorator compatible with ``dataclasses.dataclass``.

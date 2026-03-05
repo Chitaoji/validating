@@ -56,14 +56,14 @@ Error semantics:
 
 ---
 
-### `@dataclass(..., validate_methods=True)`
+### `@dataclass(...)`
 
 `validating.dataclass` is a compatible enhanced wrapper around `dataclasses.dataclass`.
 
 Enhancements:
 
 1. **Automatic default promotion**: `x: int = 1` is promoted to `attr(default=1)`
-2. **Method argument validation**: when `validate_methods=True` (default), all public methods are wrapped with `validate` (including `@staticmethod` and `@classmethod`)
+2. **Method argument validation**: when `validate_methods=True` (by default `False`), all public methods are wrapped with `validate` (including `@staticmethod` and `@classmethod`)
 
 ```python
 from validating import dataclass

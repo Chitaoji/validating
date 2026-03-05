@@ -2,10 +2,27 @@ import unittest
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from src.validating import ValidatorError, attr
+from src.validating import ValidatorError, attr, dataclass as validating_dataclass
 
 
 class TestAttrWithDataclasses(unittest.TestCase):
+    def test_validating_dataclass_promotes_plain_defaults(self):
+        @validating_dataclass
+        class Config:
+            retries: int = 3
+
+        cfg = Config()
+        self.assertEqual(cfg.retries, 3)
+        with self.assertRaises(TypeError):
+            cfg.retries = "bad"
+
+    def test_validating_dataclass_supports_call_syntax(self):
+        @validating_dataclass(eq=False)
+        class Config:
+            value: int = 1
+
+        self.assertNotEqual(Config(), Config())
+
     def test_default_value_is_lazily_applied(self):
         @dataclass
         class Config:

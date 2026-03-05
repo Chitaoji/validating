@@ -33,9 +33,11 @@ def attr(
     kw_only: bool = False,
 ) -> Any:
     """
-    Returns an attribute with validator. This works well with dataclasses.
+    Build a validated attribute descriptor, optionally wrapped as a dataclass field.
 
-    Only for dict classes.
+    The returned object enforces constraints both during initialization and on
+    later assignment. It is primarily intended for classes that store instance
+    state in ``__dict__`` (for example regular dataclasses without ``slots=True``).
 
     Parameters
     ----------
@@ -77,7 +79,7 @@ def attr(
     Returns
     -------
     Any
-        Attribute with validator.
+        A descriptor-backed field object compatible with ``dataclasses``.
 
     """
     descriptor = AttrValidator(
@@ -122,6 +124,8 @@ def attr(
 
 
 class _FieldWithGuard(Field):
+    """Field subclass that forwards descriptor access to the wrapped validator."""
+
     def __get__(self, instance: object, owner: type | None = None) -> Any:
         if instance is None:
             return self
@@ -140,6 +144,8 @@ def _field_with_guard(
     compare: bool,
     kw_only: bool,
 ) -> Any:
+    """Create a ``dataclasses.field`` clone that preserves descriptor semantics."""
+
     base_field = field(
         default=default,
         init=init,
@@ -188,10 +194,10 @@ def _slots_guard_post_init(
 
 class AttrValidator:
     """
-    Attribute validator.
+    Runtime descriptor that validates values written to a single attribute.
 
-    Note that this should NEVER be instantiated directly, but always through the
-    module-level function `attr()`.
+    This class is an implementation detail behind :func:`attr` and should not be
+    instantiated directly by user code.
 
     """
 

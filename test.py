@@ -489,6 +489,16 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"expected a>1, got 1 instead"):
             check(1)
 
+    def test_validate_converts_assertion_without_message_to_value_error(self):
+        @validate
+        def check(a: int) -> int:
+            assert a > 1
+            return a
+
+        self.assertEqual(check(2), 2)
+        with self.assertRaisesRegex(ValueError, r"expected a > 1, got 1 instead"):
+            check(1)
+
 
 if __name__ == "__main__":
     unittest.main()

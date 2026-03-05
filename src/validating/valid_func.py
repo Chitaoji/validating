@@ -6,14 +6,13 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 """
 
-from functools import wraps
 import ast
-from inspect import getsourcelines
-from inspect import Parameter, Signature, signature
 import linecache
 import re
-from traceback import TracebackException
+from functools import wraps
+from inspect import Parameter, Signature, getsourcelines, signature
 from textwrap import dedent
+from traceback import TracebackException
 from typing import Any, Callable
 
 from .valid_attr import isoftype
@@ -151,7 +150,6 @@ def _normalize_assertion_expression(expression: str) -> str:
     return " ".join(expression.split())
 
 
-
 def _value_error_for_assertion_message(
     message: str, arguments: dict[str, Any], func: Callable[..., Any]
 ) -> ValueError | None:
@@ -177,7 +175,7 @@ def _value_error_for_assertion_message(
 
     name = names[0]
     return ValueError(
-        f"invalid type for argument {name!r} of {func.__name__}: "
+        f"invalid value for argument {name!r} of {func.__name__}: "
         f"expected {message}, got {arguments[name]!r} instead"
     )
 

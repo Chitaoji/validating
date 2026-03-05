@@ -2,7 +2,12 @@ import unittest
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from src.validating import ValidatorError, attr, dataclass as validating_dataclass
+from src.validating import (
+    ValidatorError,
+    attr,
+    dataclass as validating_dataclass,
+    validate,
+)
 
 
 class TestAttrWithDataclasses(unittest.TestCase):
@@ -345,6 +350,46 @@ class TestAttrWithDataclasses(unittest.TestCase):
             RuntimeError, r"dataclasses with slots=True are not supported"
         ):
             Config()
+
+
+class TestValidateFunctionDecorator(unittest.TestCase):
+    def test_validate_checks_positional_and_keyword_arguments(self):
+        @validate
+        def add(a: int, b: int) -> int:
+            return a + b
+
+        self.assertEqual(add(1, b=2), 3)
+        with self.assertRaises(TypeError):
+            add("1", b=2)
+
+    def test_validate_ignores_unannotated_arguments(self):
+        @validate
+        def normalize(a, b: int):
+            return a, b
+
+        self.assertEqual(normalize("x", 1), ("x", 1))
+
+    def test_validate_checks_varargs_and_kwargs(self):
+        @validate
+        def collect(*args: int, **kwargs: str):
+            return args, kwargs
+
+        self.assertEqual(collect(1, 2, key="v"), ((1, 2), {"key": "v"}))
+        with self.assertRaises(TypeError):
+            collect(1, "2", key="v")
+        with self.assertRaises(TypeError):
+            collect(1, 2, key=3)
+
+    def test_validate_works_with_complex_type_hints(self):
+        @validate
+        def configure(mode: Literal["dev", "prod"], opts: dict[str, int]):
+            return mode, opts
+
+        self.assertEqual(configure("dev", {"a": 1}), ("dev", {"a": 1}))
+        with self.assertRaises(TypeError):
+            configure("test", {"a": 1})
+        with self.assertRaises(TypeError):
+            configure("dev", {"a": "1"})
 
 
 if __name__ == "__main__":

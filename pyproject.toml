@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "validating"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = []
 requires-python = ">=3.12"
 authors = [
@@ -13,7 +13,7 @@ authors = [
 maintainers = [
   {name = "Chitaoji", email = "2360742040@qq.com"}
 ]
-description = "For test"
+description = "Provides a lightweight `attr()` descriptor factory that adds runtime validation to dataclass fields."
 readme = "README.md"
 license = "BSD-3-Clause"
 license-files = ["LICENSE"]
@@ -26,6 +26,3 @@ classifiers = [
 [project.urls]
 Documentation = "https://github.com/Chitaoji/validating/blob/main/README.md"
 Repository = "https://github.com/Chitaoji/validating/"
-
-[project.scripts]
-cfg = "template.__main__:run"

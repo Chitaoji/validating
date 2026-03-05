@@ -14,9 +14,10 @@ This project falls under the BSD 3-Clause License.
 
 """
 
-from . import core
-from ._version import __version__
+from . import attribute, core
+from .attribute import *
 from .core import *
 
 __all__: list[str] = []
 __all__.extend(core.__all__)
+__all__.extend(attribute.__all__)

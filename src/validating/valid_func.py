@@ -89,7 +89,13 @@ def _assertion_expression_from_traceback(
     if source_line:
         match = re.match(r"\s*assert\s+(.+?)(?:\s*,\s*.+)?\s*$", source_line.strip())
         if match is not None:
-            return _normalize_assertion_expression(match.group(1))
+            candidate = _normalize_assertion_expression(match.group(1))
+            try:
+                ast.parse(candidate, mode="eval")
+            except SyntaxError:
+                pass
+            else:
+                return candidate
 
     expression = _assertion_expression_from_function_source(
         func,
@@ -141,6 +147,7 @@ def _assertion_expression_from_function_source(
 
 
 def _normalize_assertion_expression(expression: str) -> str:
+    expression = re.sub(r"\\\s*\n\s*", " ", expression)
     return " ".join(expression.split())
 
 

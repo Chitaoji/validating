@@ -290,12 +290,12 @@ class TestAttrWithDataclasses(unittest.TestCase):
     def test_forward_string_annotation_in_local_scope_is_resolved_for_attr(self):
         @dataclass
         class Config:
-            retries: "NotAType" = attr()
+            retries: "LaterType" = attr()
 
-        class NotAType: ...
+        class LaterType: ...
 
-        cfg = Config(retries=NotAType())
-        self.assertIsInstance(cfg.retries, NotAType)
+        cfg = Config(retries=LaterType())
+        self.assertIsInstance(cfg.retries, LaterType)
 
     def test_unresolvable_string_annotation_raises_for_attr(self):
         @dataclass
@@ -304,6 +304,8 @@ class TestAttrWithDataclasses(unittest.TestCase):
 
         with self.assertRaisesRegex(RuntimeError, r"failed to resolve annotation"):
             Config(retries=1)
+
+        class MissingType: ...
 
     def test_union_literal_and_collections(self):
         @dataclass
@@ -508,10 +510,10 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, r"failed to resolve annotation"):
 
             @validate
-            def add(a: "NotAType") -> int:
+            def add(a: "LaterType") -> int:
                 return a
 
-            class NotAType: ...
+            class LaterType: ...
 
     def test_validate_works_with_complex_type_hints(self):
         @validate

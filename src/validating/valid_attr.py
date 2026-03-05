@@ -7,10 +7,10 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 """
 
-from dataclasses import Field, field
-from functools import partialmethod
 import inspect
 import sys
+from dataclasses import Field, field
+from functools import partialmethod
 from types import UnionType
 from typing import (
     Any,
@@ -277,10 +277,10 @@ class AttrValidator:
     def __set_name__(self, cls: type, name: str) -> None:
         _install_slots_guard(cls)
         self.name = name
-        raw_type_hint = cls.__annotations__.get(name)
         try:
             self.type = _resolve_field_type_hint(cls, name)
         except ValidatorError:
+            raw_type_hint = cls.__annotations__.get(name)
             if not isinstance(raw_type_hint, str):
                 raise
             self._deferred_type_ctx = {

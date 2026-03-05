@@ -13,6 +13,7 @@ from inspect import signature
 from typing import Any, Callable
 
 from .valid_attr import AttrValidator, attr
+from .valid_func import validate
 
 __all__ = ["dataclass"]
 
@@ -31,6 +32,7 @@ def dataclass(
     kw_only: bool = False,
     slots: bool = False,
     weakref_slot: bool = False,
+    validate_methods: bool = False,
 ) -> type | Callable[[type], type]:
     """
     Dataclass decorator compatible with `dataclasses.dataclass`.
@@ -51,6 +53,7 @@ def dataclass(
         "kw_only": kw_only,
         "slots": slots,
         "weakref_slot": weakref_slot,
+        "validate_methods": validate_methods,
     }
     if cls is not None:
         return _apply_validating_dataclass(cls, **apply_kwargs)
@@ -71,6 +74,7 @@ def _apply_validating_dataclass(
     kw_only: bool,
     slots: bool,
     weakref_slot: bool,
+    validate_methods: bool,
 ) -> type:
     promoted_cls = _promote_defaults_to_attr(target_cls)
     dataclass_kwargs: dict[str, Any] = {
@@ -94,7 +98,28 @@ def _apply_validating_dataclass(
         value = getattr(dataclass_cls, name, None)
         if isinstance(value, AttrValidator) and not hasattr(value, "name"):
             value.__set_name__(dataclass_cls, name)
+
+    if validate_methods:
+        _decorate_public_methods(dataclass_cls)
+
     return dataclass_cls
+
+
+def _decorate_public_methods(cls: type) -> None:
+    for name, value in cls.__dict__.items():
+        if name.startswith("_"):
+            continue
+
+        if isinstance(value, staticmethod):
+            setattr(cls, name, staticmethod(validate(value.__func__)))
+            continue
+
+        if isinstance(value, classmethod):
+            setattr(cls, name, classmethod(validate(value.__func__)))
+            continue
+
+        if callable(value):
+            setattr(cls, name, validate(value))
 
 
 def _promote_defaults_to_attr(cls: type) -> type:

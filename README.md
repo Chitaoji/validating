@@ -10,6 +10,7 @@ Key capabilities:
 - Custom validation logic (`validator`)
 - Compatibility with common `dataclasses.field` behaviors (`init`, `repr`, `hash`, `compare`, `kw_only`)
 - Also works with non-dataclass classes.
+- `validating.dataclass(validate_methods=True)` auto-wraps public methods with `validate()`
 
 ## Installation
 ```sh
@@ -56,6 +57,15 @@ Error behavior:
 
 - Misconfiguration at class-definition time (for example: defaults that do not match the annotation) raises `ValidatorError`
 - Invalid values during initialization or assignment raise `TypeError` or `ValueError`
+
+
+### `dataclass(..., validate_methods=False)`
+
+Drop-in replacement for `dataclasses.dataclass` with two additions:
+
+- Plain defaults like `x: int = 1` are promoted to `attr(default=1)` automatically
+- When `validate_methods=True`, every method whose name does not start with `_`
+  is wrapped by `validate()` (including `@staticmethod` and `@classmethod`)
 
 ## More Examples
 

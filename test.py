@@ -11,6 +11,40 @@ from src.validating import (
 
 
 class TestAttrWithDataclasses(unittest.TestCase):
+    def test_validating_dataclass_can_validate_public_methods(self):
+        @validating_dataclass(validate_methods=True)
+        class Config:
+            retries: int = 3
+
+            def add(self, x: int, y: int) -> int:
+                return x + y
+
+            @staticmethod
+            def parse(x: int) -> int:
+                return x
+
+            @classmethod
+            def from_count(cls, x: int):
+                return cls(retries=x)
+
+            def _internal(self, x: str) -> str:
+                return x
+
+        cfg = Config()
+        self.assertEqual(cfg.add(1, 2), 3)
+        self.assertEqual(cfg.parse(1), 1)
+        self.assertEqual(cfg.from_count(4).retries, 4)
+        self.assertEqual(cfg._internal(1), 1)
+
+        with self.assertRaises(TypeError):
+            cfg.add("1", 2)
+
+        with self.assertRaises(TypeError):
+            cfg.parse("1")
+
+        with self.assertRaises(TypeError):
+            cfg.from_count("4")
+
     def test_validating_dataclass_promotes_plain_defaults(self):
         @validating_dataclass
         class Config:

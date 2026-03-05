@@ -26,6 +26,15 @@ def validate[T](func: T) -> T:
     """
     Decorator that validates function arguments against type annotations.
 
+    In addition to type checks, the wrapped function applies special handling
+    for ``assert`` statements raised during execution:
+
+    - ``assert <expr>, "message"`` keeps the original ``AssertionError``.
+    - ``assert <expr>`` (without message) is converted to ``ValueError`` when
+      ``<expr>`` is a direct comparison on exactly one function argument.
+    - Assertions that cannot be mapped to a single argument comparison remain
+      regular ``AssertionError``.
+
     Parameters
     ----------
     func : Callable[..., Any]

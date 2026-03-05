@@ -98,6 +98,24 @@ configure("dev", 4)    # ✅
 # configure("test", 4)  # ❌ TypeError
 ```
 
+`@validate` also handles `assert` statements in validated functions:
+
+- `assert <expr>, "custom message"` keeps the original `AssertionError` with your message.
+- `assert <expr>` (without message) is converted to a `ValueError` when `<expr>` is a direct assertion on function arguments, with a message like `expected <expr>, got <value> instead`.
+- Assertions that are not direct checks on function arguments are left as regular `AssertionError`.
+
+```python
+from validating import validate
+
+@validate
+def check_score(score: int) -> int:
+    assert score >= 60
+    return score
+
+check_score(80)   # ✅
+# check_score(59) # ❌ ValueError: expected score >= 60, got 59 instead
+```
+
 ## More Examples
 
 ### 1) `default_factory`

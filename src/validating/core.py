@@ -6,7 +6,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 """
 
-from .attrval import ValidatorError, attr
 from .datacls import dataclass
+from .valid_attr import ValidatorError, attr
 
 __all__ = ["attr", "dataclass", "ValidatorError"]

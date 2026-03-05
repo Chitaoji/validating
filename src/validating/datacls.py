@@ -12,7 +12,7 @@ from functools import partial
 from inspect import signature
 from typing import Any, Callable
 
-from .attrval import AttrValidator, attr
+from .valid_attr import AttrValidator, attr
 
 __all__ = ["dataclass"]
 

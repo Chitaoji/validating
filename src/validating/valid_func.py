@@ -53,7 +53,7 @@ def validate[T](func: T) -> T:
             converted = _assertion_error_to_value_error(exc, bound.arguments)
             if converted is None:
                 raise
-            raise converted from None
+            raise converted.with_traceback(exc.__traceback__) from None
 
     setattr(wrapper, _VALIDATE_MARKER, True)
 
@@ -67,8 +67,7 @@ def _assertion_error_to_value_error(
         message = _assertion_expression_from_traceback(exc)
         if message is None:
             return None
-        history = _assertion_history_text(exc)
-        return _value_error_for_assertion_message(message, arguments, history=history)
+        return _value_error_for_assertion_message(message, arguments)
 
     return None
 
@@ -92,25 +91,9 @@ def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
     return match.group(1)
 
 
-def _assertion_history_text(exc: AssertionError) -> str:
-    traceback = TracebackException.from_exception(exc)
-    if not traceback.stack:
-        return "AssertionError"
-
-    last_frame = traceback.stack[-1]
-    source_line = last_frame.line
-    if source_line is None:
-        source_line = linecache.getline(last_frame.filename, last_frame.lineno)
-    source_line = source_line.strip() if source_line else "assert <unknown>"
-
-    return (
-        f"AssertionError at {last_frame.filename}:{last_frame.lineno}: "
-        f"{source_line}"
-    )
-
 
 def _value_error_for_assertion_message(
-    message: str, arguments: dict[str, Any], history: str
+    message: str, arguments: dict[str, Any]
 ) -> ValueError | None:
     if not message:
         return None
@@ -123,10 +106,7 @@ def _value_error_for_assertion_message(
     if name not in arguments:
         return None
 
-    return ValueError(
-        f"expected {message}, got {arguments[name]!r} instead; "
-        f"history: {history}"
-    )
+    return ValueError(f"expected {message}, got {arguments[name]!r} instead")
 
 
 def _validate_bound_arguments(

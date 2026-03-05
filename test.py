@@ -496,10 +496,17 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             return a
 
         self.assertEqual(check(2), 2)
-        with self.assertRaisesRegex(ValueError, r"expected a > 1, got 1 instead") as ctx:
-            check(1)
 
-        self.assertRegex(str(ctx.exception), r"history: AssertionError at .+:\d+: assert a > 1")
+        import traceback
+
+        try:
+            check(1)
+        except ValueError as exc:
+            self.assertEqual(str(exc), "expected a > 1, got 1 instead")
+            tb_text = "".join(traceback.format_tb(exc.__traceback__))
+            self.assertRegex(tb_text, r"assert a > 1")
+        else:
+            self.fail("ValueError was not raised")
 
     def test_validate_conversion_hides_assertion_error_context(self):
         @validate

@@ -564,6 +564,28 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"expected 1 < a < 2, got 3\.0 instead"):
             check(3.0)
 
+    def test_validate_converts_parenthesized_split_line_assertion_to_value_error(self):
+        @validate
+        def check(a: int) -> int:
+            assert (a >=
+                    10)
+            return a
+
+        self.assertEqual(check(10), 10)
+        with self.assertRaisesRegex(ValueError, r"expected a >= 10, got 9 instead"):
+            check(9)
+
+    def test_validate_converts_backslash_split_line_assertion_to_value_error(self):
+        @validate
+        def check(a: int) -> int:
+            assert a >= \
+                10
+            return a
+
+        self.assertEqual(check(10), 10)
+        with self.assertRaisesRegex(ValueError, r"expected a >= 10, got 9 instead"):
+            check(9)
+
     def test_validate_preserves_assertion_for_non_argument_expression(self):
         @validate
         def check(a: int) -> int:

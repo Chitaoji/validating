@@ -8,5 +8,6 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 from .datacls import dataclass
 from .valid_attr import ValidatorError, attr
+from .valid_func import validate
 
-__all__ = ["attr", "dataclass", "ValidatorError"]
+__all__ = ["attr", "dataclass", "validate", "ValidatorError"]

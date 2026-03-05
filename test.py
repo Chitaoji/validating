@@ -502,7 +502,10 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         try:
             check(1)
         except ValueError as exc:
-            self.assertEqual(str(exc), "expected a > 1, got 1 instead")
+            self.assertEqual(
+                str(exc),
+                "invalid type for argument 'a' of check: expected a > 1, got 1 instead",
+            )
             tb_text = "".join(traceback.format_tb(exc.__traceback__))
             self.assertRegex(tb_text, r"assert a > 1")
         else:

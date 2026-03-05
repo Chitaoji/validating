@@ -98,7 +98,9 @@ def _value_error_for_assertion_message(
     if not message:
         return None
 
-    match = re.match(r"\s*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message)
+    match = re.match(
+        r"\s*(?:\(+\s*)*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message
+    )
     if match is None:
         return None
 

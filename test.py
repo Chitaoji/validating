@@ -520,6 +520,16 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         self.assertIsNone(context.exception.__cause__)
         self.assertTrue(context.exception.__suppress_context__)
 
+    def test_validate_converts_parenthesized_assertion_to_value_error(self):
+        @validate
+        def check(a: int) -> int:
+            assert (a > 1)
+            return a
+
+        self.assertEqual(check(2), 2)
+        with self.assertRaisesRegex(ValueError, r"expected \(a > 1\), got 1 instead"):
+            check(1)
+
     def test_validate_preserves_assertion_for_non_argument_expression(self):
         @validate
         def check(a: int) -> int:

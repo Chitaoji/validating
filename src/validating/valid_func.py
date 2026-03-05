@@ -13,7 +13,7 @@ from functools import wraps
 from inspect import Parameter, Signature, getsourcelines, signature
 from textwrap import dedent
 from traceback import TracebackException
-from typing import Any, Callable
+from typing import Any, Callable, get_type_hints
 
 from .valid_attr import isoftype
 
@@ -53,11 +53,12 @@ def validate[T](func: T) -> T:
         return func
 
     sig = signature(func)
+    resolved_annotations = _resolve_signature_annotations(func, sig)
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         bound = sig.bind(*args, **kwargs)
-        _validate_bound_arguments(func, sig, bound.arguments)
+        _validate_bound_arguments(func, sig, bound.arguments, resolved_annotations)
         try:
             return func(*args, **kwargs)
         except AssertionError as exc:
@@ -189,16 +190,44 @@ def _value_error_for_assertion_message(
     )
 
 
+def _resolve_signature_annotations(
+    func: Callable[..., Any],
+    sig: Signature,
+) -> dict[str, Any]:
+    resolved_annotations: dict[str, Any] = {}
+    try:
+        type_hints = get_type_hints(func, include_extras=True)
+    except Exception:
+        type_hints = {}
+
+    for name, param in sig.parameters.items():
+        annotation = param.annotation
+        if annotation is Signature.empty:
+            continue
+        if name in type_hints:
+            resolved_annotations[name] = type_hints[name]
+            continue
+        if isinstance(annotation, str):
+            raise TypeError(
+                f"failed to resolve annotation for argument {name!r} of "
+                f"{func.__name__}: {annotation!r}"
+            )
+        resolved_annotations[name] = annotation
+
+    return resolved_annotations
+
+
 def _validate_bound_arguments(
     func: Callable[..., Any],
     sig: Signature,
     arguments: dict[str, Any],
+    resolved_annotations: dict[str, Any],
 ) -> None:
     for name, value in arguments.items():
         param = sig.parameters[name]
-        annotation = param.annotation
-        if annotation is Signature.empty:
+        if name not in resolved_annotations:
             continue
+        annotation = resolved_annotations[name]
 
         if param.kind is Parameter.VAR_POSITIONAL:
             for idx, item in enumerate(value):

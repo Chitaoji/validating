@@ -161,7 +161,7 @@ class TestAttrWithDataclasses(unittest.TestCase):
         class RangeCfg:
             score: int = attr(lb=1, ub=2)
 
-        with self.assertRaisesRegex(ValueError, r"expected 1 <= x <= 2"):
+        with self.assertRaisesRegex(ValueError, r"expected 1 ≤ x ≤ 2"):
             RangeCfg(score=0)
 
     def test_strict_bounds_validation(self):
@@ -182,7 +182,7 @@ class TestAttrWithDataclasses(unittest.TestCase):
         class RangeCfg:
             score: int = attr(slb=1, ub=2)
 
-        with self.assertRaisesRegex(ValueError, r"expected 1 < x <= 2"):
+        with self.assertRaisesRegex(ValueError, r"expected 1 < x ≤ 2"):
             RangeCfg(score=1)
 
     def test_custom_validator(self):

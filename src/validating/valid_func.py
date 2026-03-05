@@ -50,7 +50,10 @@ def validate[T](func: T) -> T:
         try:
             return func(*args, **kwargs)
         except AssertionError as exc:
-            raise _assertion_error_to_value_error(exc, bound.arguments) from exc
+            converted = _assertion_error_to_value_error(exc, bound.arguments)
+            if converted is None:
+                raise
+            raise converted from exc
 
     setattr(wrapper, _VALIDATE_MARKER, True)
 
@@ -59,18 +62,14 @@ def validate[T](func: T) -> T:
 
 def _assertion_error_to_value_error(
     exc: AssertionError, arguments: dict[str, Any]
-) -> ValueError:
+) -> ValueError | None:
     if not exc.args:
         message = _assertion_expression_from_traceback(exc)
         if message is None:
-            return ValueError(*exc.args)
+            return None
         return _value_error_for_assertion_message(message, arguments, fallback=exc.args)
 
-    if not isinstance(exc.args[0], str):
-        return ValueError(*exc.args)
-
-    message = exc.args[0]
-    return _value_error_for_assertion_message(message, arguments, fallback=exc.args)
+    return None
 
 
 def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
@@ -94,17 +93,17 @@ def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
 
 def _value_error_for_assertion_message(
     message: str, arguments: dict[str, Any], fallback: tuple[Any, ...]
-) -> ValueError:
+) -> ValueError | None:
     if not message:
-        return ValueError(*fallback)
+        return None
 
     match = re.match(r"\s*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message)
     if match is None:
-        return ValueError(*fallback)
+        return None
 
     name = match.group(1)
     if name not in arguments:
-        return ValueError(*fallback)
+        return None
 
     return ValueError(f"expected {message}, got {arguments[name]!r} instead")
 

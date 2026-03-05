@@ -479,14 +479,14 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaises(TypeError):
             configure("dev", {"a": "1"})
 
-    def test_validate_converts_assertion_error_to_value_error(self):
+    def test_validate_preserves_assertion_error_with_message(self):
         @validate
         def check(a: int) -> int:
             assert a > 1, "a>1"
             return a
 
         self.assertEqual(check(2), 2)
-        with self.assertRaisesRegex(ValueError, r"expected a>1, got 1 instead"):
+        with self.assertRaisesRegex(AssertionError, r"a>1"):
             check(1)
 
     def test_validate_converts_assertion_without_message_to_value_error(self):
@@ -497,6 +497,17 @@ class TestValidateFunctionDecorator(unittest.TestCase):
 
         self.assertEqual(check(2), 2)
         with self.assertRaisesRegex(ValueError, r"expected a > 1, got 1 instead"):
+            check(1)
+
+    def test_validate_preserves_assertion_for_non_argument_expression(self):
+        @validate
+        def check(a: int) -> int:
+            local = a + 1
+            assert local > 2
+            return a
+
+        self.assertEqual(check(2), 2)
+        with self.assertRaises(AssertionError):
             check(1)
 
 

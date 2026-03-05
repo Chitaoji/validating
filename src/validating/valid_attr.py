@@ -61,25 +61,25 @@ def attr(
         Custom validator function, by default Ellipsis.
     init : bool, optional
         Whether this field should be included as a generated ``__init__()``
-        parameter when used with :func:`dataclasses.dataclass`, by default True.
+        parameter when used with ``dataclasses.dataclass``, by default True.
     repr : bool, optional
         Whether this field should be included in the generated ``__repr__()``
         output, by default True.
     hash : Optional[bool], optional
         Whether this field should be included in generated ``__hash__()``.
-        Follows :func:`dataclasses.field` behavior where ``None`` defers to
+        Follows ``dataclasses.field`` behavior where ``None`` defers to
         ``compare``, by default None.
     compare : bool, optional
         Whether this field should be used in generated comparison methods,
         by default True.
     kw_only : bool, optional
         Whether this field should be marked as keyword-only for
-        :func:`dataclasses.dataclass` generated ``__init__()``, by default False.
+        ``dataclasses.dataclass`` generated ``__init__()``, by default False.
 
     Returns
     -------
     Any
-        A descriptor-backed field object compatible with ``dataclasses``.
+        A descriptor-backed field object compatible with dataclasses.
 
     """
     descriptor = AttrValidator(
@@ -187,7 +187,9 @@ def _slots_guard_post_init(
     **kwargs: Any,
 ) -> None:
     if not hasattr(self, "__dict__"):
-        raise ValidatorError("dataclasses with slots=True are not supported by validattr")
+        raise ValidatorError(
+            "dataclasses with slots=True are not supported by validattr"
+        )
     if original_post_init is not None:
         original_post_init(self, *args, **kwargs)
 

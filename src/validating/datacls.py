@@ -35,14 +35,14 @@ def dataclass(
     validate_methods: bool = True,
 ) -> type | Callable[[type], type]:
     """
-    Dataclass decorator compatible with :func:`dataclasses.dataclass`.
+    Dataclass decorator compatible with ``dataclasses.dataclass``.
 
     Differences from the stdlib decorator:
 
     1. Annotated class attributes with direct defaults (for example ``x: int = 1``)
        are automatically promoted to :func:`attr` fields using ``attr(default=1)``.
     2. When ``validate_methods=True``, public methods are wrapped by
-       :func:`validating.validate`.
+       ``validating.validate``.
 
     """
     apply_kwargs = {

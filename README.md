@@ -6,8 +6,8 @@
 It exposes three main entry points:
 
 - `attr(...)`: declare validated fields (type checks, bounds, allow/deny lists, custom validators)
-- `dataclass(...)`: a compatible enhancement of `dataclasses.dataclass` with automatic validation integration
-- `validate`: a decorator that validates function arguments using type annotations
+- `@dataclass(...)`: a compatible enhancement of `dataclasses.dataclass` with automatic validation integration
+- `@validate`: a decorator that validates function arguments using type annotations
 
 ## Installation
 
@@ -56,7 +56,7 @@ Error semantics:
 
 ---
 
-### `dataclass(..., validate_methods=True)`
+### `@dataclass(..., validate_methods=True)`
 
 `validating.dataclass` is a compatible enhanced wrapper around `dataclasses.dataclass`.
 

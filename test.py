@@ -530,6 +530,40 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, r"expected \(a > 1\), got 1 instead"):
             check(1)
 
+    def test_validate_converts_chained_assertion_with_argument_in_middle(self):
+        @validate
+        def check(a: float) -> float:
+            assert 1 < a < 2
+            return a
+
+        self.assertEqual(check(1.5), 1.5)
+        with self.assertRaisesRegex(ValueError, r"expected 1 < a < 2, got 3\.0 instead"):
+            check(3.0)
+
+    def test_validate_converts_chained_assertion_with_argument_on_right(self):
+        @validate
+        def check(a: int) -> int:
+            assert 3 > a >= 2
+            return a
+
+        self.assertEqual(check(2), 2)
+        with self.assertRaisesRegex(ValueError, r"expected 3 > a >= 2, got 1 instead"):
+            check(1)
+
+    def test_validate_converts_multiline_assertion_to_value_error(self):
+        @validate
+        def check(a: float) -> float:
+            assert (
+                1
+                < a
+                < 2
+            )
+            return a
+
+        self.assertEqual(check(1.5), 1.5)
+        with self.assertRaisesRegex(ValueError, r"expected 1 < a < 2, got 3\.0 instead"):
+            check(3.0)
+
     def test_validate_preserves_assertion_for_non_argument_expression(self):
         @validate
         def check(a: int) -> int:

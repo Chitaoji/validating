@@ -7,10 +7,13 @@ NOTE: this module is private. All functions and objects are available in the mai
 """
 
 from functools import wraps
+import ast
+from inspect import getsourcelines
 from inspect import Parameter, Signature, signature
 import linecache
 import re
 from traceback import TracebackException
+from textwrap import dedent
 from typing import Any, Callable
 
 from .valid_attr import isoftype
@@ -50,7 +53,7 @@ def validate[T](func: T) -> T:
         try:
             return func(*args, **kwargs)
         except AssertionError as exc:
-            converted = _assertion_error_to_value_error(exc, bound.arguments)
+            converted = _assertion_error_to_value_error(exc, bound.arguments, func)
             if converted is None:
                 raise
             raise converted.with_traceback(exc.__traceback__) from None
@@ -61,10 +64,10 @@ def validate[T](func: T) -> T:
 
 
 def _assertion_error_to_value_error(
-    exc: AssertionError, arguments: dict[str, Any]
+    exc: AssertionError, arguments: dict[str, Any], func: Callable[..., Any]
 ) -> ValueError | None:
     if not exc.args:
-        message = _assertion_expression_from_traceback(exc)
+        message = _assertion_expression_from_traceback(exc, func)
         if message is None:
             return None
         return _value_error_for_assertion_message(message, arguments)
@@ -72,7 +75,9 @@ def _assertion_error_to_value_error(
     return None
 
 
-def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
+def _assertion_expression_from_traceback(
+    exc: AssertionError, func: Callable[..., Any]
+) -> str | None:
     traceback = TracebackException.from_exception(exc)
     if not traceback.stack:
         return None
@@ -81,14 +86,62 @@ def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
     source_line = last_frame.line
     if source_line is None:
         source_line = linecache.getline(last_frame.filename, last_frame.lineno)
-    if not source_line:
+    if source_line:
+        match = re.match(r"\s*assert\s+(.+?)(?:\s*,\s*.+)?\s*$", source_line.strip())
+        if match is not None:
+            return _normalize_assertion_expression(match.group(1))
+
+    expression = _assertion_expression_from_function_source(
+        func,
+        filename=last_frame.filename,
+        lineno=last_frame.lineno,
+    )
+    if expression is not None:
+        return expression
+
+    return None
+
+
+def _assertion_expression_from_function_source(
+    func: Callable[..., Any], filename: str, lineno: int
+) -> str | None:
+    if getattr(func, "__code__", None) is None:
         return None
 
-    match = re.match(r"\s*assert\s+(.+?)(?:\s*,\s*.+)?\s*$", source_line.strip())
-    if match is None:
+    if func.__code__.co_filename != filename:
         return None
 
-    return match.group(1)
+    try:
+        source_lines, start_line = getsourcelines(func)
+    except (OSError, TypeError):
+        return None
+
+    source = dedent("".join(source_lines))
+    try:
+        module = ast.parse(source)
+    except SyntaxError:
+        return None
+
+    for node in ast.walk(module):
+        if not isinstance(node, ast.Assert):
+            continue
+
+        node_start_lineno = start_line + node.lineno - 1
+        node_end_lineno = start_line + getattr(node, "end_lineno", node.lineno) - 1
+        if not (node_start_lineno <= lineno <= node_end_lineno):
+            continue
+
+        segment = ast.get_source_segment(source, node.test)
+        if segment is None:
+            continue
+
+        return _normalize_assertion_expression(segment)
+
+    return None
+
+
+def _normalize_assertion_expression(expression: str) -> str:
+    return " ".join(expression.split())
 
 
 
@@ -98,16 +151,24 @@ def _value_error_for_assertion_message(
     if not message:
         return None
 
-    match = re.match(
-        r"\s*(?:\(+\s*)*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message
-    )
-    if match is None:
+    try:
+        tree = ast.parse(message, mode="eval")
+    except SyntaxError:
         return None
 
-    name = match.group(1)
-    if name not in arguments:
+    if not isinstance(tree.body, ast.Compare):
         return None
 
+    names: list[str] = []
+    for node in ast.walk(tree.body):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            if node.id in arguments and node.id not in names:
+                names.append(node.id)
+
+    if len(names) != 1:
+        return None
+
+    name = names[0]
     return ValueError(f"expected {message}, got {arguments[name]!r} instead")
 
 

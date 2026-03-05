@@ -8,7 +8,9 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 from functools import wraps
 from inspect import Parameter, Signature, signature
+import linecache
 import re
+from traceback import TracebackException
 from typing import Any, Callable
 
 from .valid_attr import isoftype
@@ -58,17 +60,51 @@ def validate[T](func: T) -> T:
 def _assertion_error_to_value_error(
     exc: AssertionError, arguments: dict[str, Any]
 ) -> ValueError:
-    if not exc.args or not isinstance(exc.args[0], str):
+    if not exc.args:
+        message = _assertion_expression_from_traceback(exc)
+        if message is None:
+            return ValueError(*exc.args)
+        return _value_error_for_assertion_message(message, arguments, fallback=exc.args)
+
+    if not isinstance(exc.args[0], str):
         return ValueError(*exc.args)
 
     message = exc.args[0]
+    return _value_error_for_assertion_message(message, arguments, fallback=exc.args)
+
+
+def _assertion_expression_from_traceback(exc: AssertionError) -> str | None:
+    traceback = TracebackException.from_exception(exc)
+    if not traceback.stack:
+        return None
+
+    last_frame = traceback.stack[-1]
+    source_line = last_frame.line
+    if source_line is None:
+        source_line = linecache.getline(last_frame.filename, last_frame.lineno)
+    if not source_line:
+        return None
+
+    match = re.match(r"\s*assert\s+(.+?)(?:\s*,\s*.+)?\s*$", source_line.strip())
+    if match is None:
+        return None
+
+    return match.group(1)
+
+
+def _value_error_for_assertion_message(
+    message: str, arguments: dict[str, Any], fallback: tuple[Any, ...]
+) -> ValueError:
+    if not message:
+        return ValueError(*fallback)
+
     match = re.match(r"\s*([A-Za-z_]\w*)\s*(==|!=|>=|<=|>|<).+", message)
     if match is None:
-        return ValueError(*exc.args)
+        return ValueError(*fallback)
 
     name = match.group(1)
     if name not in arguments:
-        return ValueError(*exc.args)
+        return ValueError(*fallback)
 
     return ValueError(f"expected {message}, got {arguments[name]!r} instead")
 

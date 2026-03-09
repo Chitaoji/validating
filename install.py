@@ -21,7 +21,6 @@ HOMEPAGE: Final[str] = project["urls"]["Repository"]
 REQUIRES: Final[list[str]] = project["dependencies"]
 SOURCE = "src"
 LICENSE = (here / project["license-files"][0]).read_text().partition("\n")[0]
-VERSION = project["version"]
 
 # Import the README and use it as the long-description.
 readme_path = here / project["readme"]
@@ -84,10 +83,6 @@ def _quote(readme: str) -> str:
         return f'"""{readme}"""'
 
 
-def _version(version: str = VERSION) -> str:
-    return f'"""Version file."""\n\n__version__ = "{version}"\n'
-
-
 class ReadmeFormatError(Exception):
     """Raised when the README has a wrong format."""
 
@@ -95,7 +90,6 @@ class ReadmeFormatError(Exception):
 if __name__ == "__main__":
     # Import the __init__.py and change the module docstring.
     init_path = here / SOURCE / NAME / "__init__.py"
-    version_path = here / SOURCE / NAME / "_version.py"
     module_file = init_path.read_text(encoding="utf-8")
     new_doc, long_description = _readme2doc(long_description)
     module_file = re.sub(
@@ -103,5 +97,4 @@ if __name__ == "__main__":
     )
     init_path.write_text(module_file, encoding="utf-8")
     readme_path.write_text(long_description.strip(), encoding="utf-8")
-    version_path.write_text(_version())
     os.system(f"cd {here} && python -m build")

@@ -162,8 +162,7 @@ class EvenNumber:
 - PyPI: https://pypi.org/project/validating/
 
 ## License
-
-BSD 3-Clause License.
+This project falls under the BSD 3-Clause License.
 
 ## History
 

@@ -1,26 +1,24 @@
 # validating
 
-`validating` provides a lightweight `attr()` descriptor factory that adds **runtime validation** to `dataclass` fields.
+`validating` is a lightweight runtime validation library focused on making
+`dataclass` fields and function arguments safer and easier to validate.
 
-Key capabilities:
+It exposes three main entry points:
 
-- Type checking (including `Union`, `Literal`, and common container type hints)
-- Membership constraints (`allowlist`, `denylist`)
-- Boundary checks (`lb`, `ub`, `slb`, `sub`)
-- Custom validation logic (`validator`)
-- Compatibility with common `dataclasses.field` behaviors (`init`, `repr`, `hash`, `compare`, `kw_only`)
-- Also works with non-dataclass classes.
+- `attr(...)`: declare validated fields (type checks, bounds, allow/deny lists, custom validators)
+- `@dataclass(...)`: a compatible enhancement of `dataclasses.dataclass` with automatic validation integration
+- `@validate`: a decorator that validates function arguments using type annotations
 
 ## Installation
-```sh
-$ pip install validating
+
+```bash
+pip install validating
 ```
 
 ## Quick Start
 
 ```python
-from dataclasses import dataclass
-from validating import attr
+from validating import attr, dataclass
 
 @dataclass
 class UserConfig:
@@ -28,42 +26,102 @@ class UserConfig:
     role: str = attr(allowlist=["admin", "user"])
 
 cfg = UserConfig(age=18, role="admin")
-cfg.age = 20           # ✅ valid
-cfg.role = "user"     # ✅ valid
-# cfg.age = -1          # ❌ ValueError
-# cfg.role = "guest"   # ❌ ValueError
+cfg.age = 20          # ✅
+cfg.role = "user"    # ✅
+# cfg.age = -1        # ❌ ValueError
+# cfg.role = "guest" # ❌ ValueError
 ```
 
-## API
+## Core API
 
 ### `attr(...)`
 
-Declares a `dataclass` field with built-in validation.
+Declares a descriptor-backed field that validates values on initialization and assignment.
 
-Main parameters:
+Common parameters:
 
 - `default`: default value
-- `default_factory`: callable that lazily creates a default value (mutually exclusive with `default`)
-- `allowlist`: list of allowed values
-- `denylist`: list of forbidden values
-- `lb` / `ub`: lower/upper bounds (inclusive)
-- `slb` / `sub`: strict lower/upper bounds (exclusive)
-- `lb` and `slb` are mutually exclusive; `ub` and `sub` are mutually exclusive
+- `default_factory`: lazy default factory (mutually exclusive with `default`)
+- `allowlist`: whitelist of allowed values
+- `denylist`: blacklist of forbidden values
+- `lb` / `ub`: inclusive lower / upper bounds
+- `slb` / `sub`: exclusive lower / upper bounds
 - `validator`: custom validator function with signature `Callable[[Any], bool]`
-- `init` / `repr` / `hash` / `compare` / `kw_only`: forwarded to dataclass field behavior controls
+- `init` / `repr` / `hash` / `compare` / `kw_only`: forwarded dataclass field behavior controls
 
-Error behavior:
+Error semantics:
 
-- Misconfiguration at class-definition time (for example: defaults that do not match the annotation) raises `ValidatorError`
-- Invalid values during initialization or assignment raise `TypeError` or `ValueError`
+- Misconfiguration at class-definition time (for example, default type mismatch) raises `ValidatorError`
+- Invalid runtime values raise `TypeError` or `ValueError`
+
+---
+
+### `@dataclass(...)`
+
+`validating.dataclass` is a compatible enhanced wrapper around `dataclasses.dataclass`.
+
+Enhancements:
+
+1. **Automatic default promotion**: `x: int = 1` is promoted to `attr(default=1)`
+2. **Method argument validation**: when `validate_methods=True` (by default `False`), all public methods are wrapped with `validate` (including `@staticmethod` and `@classmethod`)
+
+```python
+from validating import dataclass
+
+@dataclass(validate_methods=True)
+class Service:
+    retries: int = 3
+
+    def run(self, timeout: int) -> int:
+        return timeout + self.retries
+
+svc = Service()
+svc.run(1)       # ✅
+# svc.run("1")   # ❌ TypeError
+```
+
+---
+
+### `@validate`
+
+Enables call-time argument validation based on type annotations.
+
+```python
+from typing import Literal
+from validating import validate
+
+@validate
+def configure(mode: Literal["dev", "prod"], workers: int):
+    return mode, workers
+
+configure("dev", 4)    # ✅
+# configure("test", 4)  # ❌ TypeError
+```
+
+`@validate` also handles `assert` statements in validated functions:
+
+- `assert <expr>, "custom message"` keeps the original `AssertionError` with your message.
+- `assert <expr>` (without message) is converted to a `ValueError` when `<expr>` is a direct assertion on function arguments, with a message like `expected <expr>, got <value> instead`.
+- Assertions that are not direct checks on function arguments are left as regular `AssertionError`.
+
+```python
+from validating import validate
+
+@validate
+def check_score(score: int) -> int:
+    assert score >= 60
+    return score
+
+check_score(80)   # ✅
+# check_score(59) # ❌ ValueError: expected score >= 60, got 59 instead
+```
 
 ## More Examples
 
 ### 1) `default_factory`
 
 ```python
-from dataclasses import dataclass
-from validating import attr
+from validating import attr, dataclass
 
 @dataclass
 class Cache:
@@ -73,9 +131,8 @@ class Cache:
 ### 2) Complex type hints
 
 ```python
-from dataclasses import dataclass
 from typing import Literal
-from validating import attr
+from validating import attr, dataclass
 
 @dataclass
 class AppConfig:
@@ -87,25 +144,29 @@ class AppConfig:
 ### 3) Custom validator
 
 ```python
-from dataclasses import dataclass
-from validating import attr
+from validating import attr, dataclass
 
 @dataclass
 class EvenNumber:
     value: int = attr(validator=lambda x: x % 2 == 0)
 ```
 
+## Notes
+
+- Dataclasses with `slots=True` are currently not supported.
+- This project focuses on runtime validation and does not replace static type checking.
 
 ## See Also
-### Github repository
-* https://github.com/Chitaoji/validating/
 
-### PyPI project
-* https://pypi.org/project/validating/
+- GitHub: https://github.com/Chitaoji/validating/
+- PyPI: https://pypi.org/project/validating/
 
 ## License
-This project falls under the BSD 3-Clause License.
+
+BSD 3-Clause License.
 
 ## History
+
 ### v0.0.1
-* Initial release.
+
+- Initial release.

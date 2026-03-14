@@ -15,7 +15,13 @@ from textwrap import dedent
 from traceback import TracebackException
 from typing import Any, Callable, get_args, get_origin, get_type_hints
 
-from .valid_attr import _collect_runtime_localns, _get_owner_localns, isoftype
+from .valid_attr import (
+    _collect_runtime_localns,
+    _collect_type_checking_names,
+    _get_owner_localns,
+    _merge_localns,
+    isoftype,
+)
 
 __all__ = ["validate"]
 
@@ -216,11 +222,12 @@ def _resolve_signature_annotations(
     deferred_annotations: dict[str, str] = {}
 
     globalns = vars(__import__(func.__module__, fromlist=["*"]))
+    merged_localns = _merge_localns(localns, _collect_type_checking_names(func.__module__))
     try:
         type_hints = get_type_hints(
             func,
             globalns=globalns,
-            localns=localns,
+            localns=merged_localns,
             include_extras=True,
         )
     except Exception:
@@ -251,7 +258,10 @@ def _resolve_deferred_signature_annotations(
     if not deferred_annotations:
         return
 
-    localns = _collect_runtime_localns(initial_localns)
+    localns = _merge_localns(
+        _collect_runtime_localns(initial_localns),
+        _collect_type_checking_names(func.__module__),
+    )
     globalns = vars(__import__(func.__module__, fromlist=["*"]))
     try:
         type_hints = get_type_hints(

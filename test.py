@@ -1,4 +1,8 @@
 import unittest
+import sys
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from dataclasses import dataclass
 from typing import Any, Literal, TypedDict
 
@@ -302,6 +306,45 @@ class TestAttrWithDataclasses(unittest.TestCase):
         cfg = Config(retries=LaterType())
         self.assertIsInstance(cfg.retries, LaterType)
 
+    def test_forward_string_annotation_from_type_checking_import_is_resolved_for_attr(
+        self,
+    ):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "models.py").write_text(
+                "class LaterType:\n"
+                "    pass\n",
+                encoding="utf-8",
+            )
+            (root / "consumer.py").write_text(
+                "from dataclasses import dataclass\n"
+                "from typing import TYPE_CHECKING\n"
+                "from src.validating import attr\n"
+                "\n"
+                "if TYPE_CHECKING:\n"
+                "    from models import LaterType\n"
+                "\n"
+                "@dataclass\n"
+                "class Config:\n"
+                "    value: 'LaterType' = attr()\n",
+                encoding="utf-8",
+            )
+
+            models_spec = spec_from_file_location("models", root / "models.py")
+            assert models_spec is not None and models_spec.loader is not None
+            models_module = module_from_spec(models_spec)
+            sys.modules["models"] = models_module
+            models_spec.loader.exec_module(models_module)
+
+            consumer_spec = spec_from_file_location("consumer", root / "consumer.py")
+            assert consumer_spec is not None and consumer_spec.loader is not None
+            consumer_module = module_from_spec(consumer_spec)
+            sys.modules["consumer"] = consumer_module
+            consumer_spec.loader.exec_module(consumer_module)
+
+            cfg = consumer_module.Config(value=models_module.LaterType())
+            self.assertIsInstance(cfg.value, models_module.LaterType)
+
     def test_unresolvable_string_annotation_raises_for_attr(self):
         @dataclass
         class Config:
@@ -539,6 +582,44 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         self.assertIs(build(instance), instance)
         with self.assertRaises(TypeError):
             build(1)
+
+    def test_validate_resolves_forward_annotation_from_type_checking_import(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "models.py").write_text(
+                "class LaterType:\n"
+                "    pass\n",
+                encoding="utf-8",
+            )
+            (root / "consumer.py").write_text(
+                "from typing import TYPE_CHECKING\n"
+                "from src.validating import validate\n"
+                "\n"
+                "if TYPE_CHECKING:\n"
+                "    from models import LaterType\n"
+                "\n"
+                "@validate\n"
+                "def build(value: 'LaterType') -> 'LaterType':\n"
+                "    return value\n",
+                encoding="utf-8",
+            )
+
+            models_spec = spec_from_file_location("models", root / "models.py")
+            assert models_spec is not None and models_spec.loader is not None
+            models_module = module_from_spec(models_spec)
+            sys.modules["models"] = models_module
+            models_spec.loader.exec_module(models_module)
+
+            consumer_spec = spec_from_file_location("consumer", root / "consumer.py")
+            assert consumer_spec is not None and consumer_spec.loader is not None
+            consumer_module = module_from_spec(consumer_spec)
+            sys.modules["consumer"] = consumer_module
+            consumer_spec.loader.exec_module(consumer_module)
+
+            instance = models_module.LaterType()
+            self.assertIs(consumer_module.build(instance), instance)
+            with self.assertRaises(TypeError):
+                consumer_module.build(1)
 
     def test_validate_raises_for_unresolvable_string_annotation(self):
         @validate

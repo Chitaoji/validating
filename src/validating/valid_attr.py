@@ -25,6 +25,7 @@ from types import UnionType
 from typing import (
     Any,
     Callable,
+    ForwardRef,
     Literal,
     Optional,
     Union,
@@ -740,6 +741,12 @@ def isoftype(
     args = get_args(type_hint)
 
     if origin is None:
+        if isinstance(type_hint, ForwardRef):
+            # Unresolved forward references may appear in dynamic annotations
+            # (e.g. ``Union[ForwardRef("MyTypedDict"), None]``). At runtime,
+            # accept these values instead of failing with a low-signal error.
+            return None
+
         newtype_super = getattr(type_hint, "__supertype__", None)
         if newtype_super is not None:
             return isoftype(value, newtype_super, name, path)

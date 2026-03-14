@@ -564,6 +564,7 @@ def _resolve_field_type_hint(
     name: str,
     *,
     localns: dict[str, Any] | None = None,
+    include_type_checking_names: bool = False,
 ) -> type:
     if name not in cls.__annotations__:
         return Any
@@ -572,10 +573,12 @@ def _resolve_field_type_hint(
     if not isinstance(raw_type_hint, str):
         return raw_type_hint
 
-    merged_localns = _merge_localns(
-        localns,
-        _collect_type_checking_names(cls.__module__),
-    )
+    merged_localns = localns
+    if include_type_checking_names:
+        merged_localns = _merge_localns(
+            localns,
+            _collect_type_checking_names(cls.__module__),
+        )
 
     try:
         resolved_hints = get_type_hints(
@@ -584,11 +587,14 @@ def _resolve_field_type_hint(
             localns=merged_localns,
             include_extras=True,
         )
-    except NameError as exc:
-        raise ValidatorError(
-            f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
-        ) from exc
     except Exception as exc:  # pragma: no cover - exact exception depends on annotation
+        if not include_type_checking_names:
+            return _resolve_field_type_hint(
+                cls,
+                name,
+                localns=localns,
+                include_type_checking_names=True,
+            )
         raise ValidatorError(
             f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
         ) from exc

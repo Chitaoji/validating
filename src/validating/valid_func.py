@@ -222,16 +222,23 @@ def _resolve_signature_annotations(
     deferred_annotations: dict[str, str] = {}
 
     globalns = vars(__import__(func.__module__, fromlist=["*"]))
-    merged_localns = _merge_localns(localns, _collect_type_checking_names(func.__module__))
     try:
         type_hints = get_type_hints(
             func,
             globalns=globalns,
-            localns=merged_localns,
+            localns=localns,
             include_extras=True,
         )
     except Exception:
-        type_hints = {}
+        try:
+            type_hints = get_type_hints(
+                func,
+                globalns=globalns,
+                localns=_merge_localns(localns, _collect_type_checking_names(func.__module__)),
+                include_extras=True,
+            )
+        except Exception:
+            type_hints = {}
 
     for name, param in sig.parameters.items():
         annotation = param.annotation

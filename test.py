@@ -306,6 +306,47 @@ class TestAttrWithDataclasses(unittest.TestCase):
         cfg = Config(retries=LaterType())
         self.assertIsInstance(cfg.retries, LaterType)
 
+    def test_type_checking_import_is_lazily_loaded_for_attr(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "lazy_models.py").write_text(
+                "class LaterType:\n"
+                "    pass\n",
+                encoding="utf-8",
+            )
+            (root / "lazy_consumer.py").write_text(
+                "from dataclasses import dataclass\n"
+                "from typing import TYPE_CHECKING\n"
+                "from src.validating import attr\n"
+                "\n"
+                "if TYPE_CHECKING:\n"
+                "    from lazy_models import LaterType\n"
+                "\n"
+                "@dataclass\n"
+                "class Config:\n"
+                "    value: 'LaterType' = attr()\n",
+                encoding="utf-8",
+            )
+
+            self.assertNotIn("lazy_models", sys.modules)
+
+            consumer_spec = spec_from_file_location("lazy_consumer", root / "lazy_consumer.py")
+            assert consumer_spec is not None and consumer_spec.loader is not None
+            consumer_module = module_from_spec(consumer_spec)
+            sys.modules["lazy_consumer"] = consumer_module
+            consumer_spec.loader.exec_module(consumer_module)
+
+            self.assertNotIn("lazy_models", sys.modules)
+
+            models_spec = spec_from_file_location("lazy_models", root / "lazy_models.py")
+            assert models_spec is not None and models_spec.loader is not None
+            models_module = module_from_spec(models_spec)
+            sys.modules["lazy_models"] = models_module
+            models_spec.loader.exec_module(models_module)
+
+            cfg = consumer_module.Config(value=models_module.LaterType())
+            self.assertIsInstance(cfg.value, models_module.LaterType)
+
     def test_forward_string_annotation_from_type_checking_import_is_resolved_for_attr(
         self,
     ):
@@ -593,6 +634,48 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         self.assertIs(build(instance), instance)
         with self.assertRaises(TypeError):
             build(1)
+
+    def test_validate_type_checking_import_is_lazily_loaded(self):
+        with TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            (root / "lazy_v_models.py").write_text(
+                "class LaterType:\n"
+                "    pass\n",
+                encoding="utf-8",
+            )
+            (root / "lazy_v_consumer.py").write_text(
+                "from typing import TYPE_CHECKING\n"
+                "from src.validating import validate\n"
+                "\n"
+                "if TYPE_CHECKING:\n"
+                "    from lazy_v_models import LaterType\n"
+                "\n"
+                "@validate\n"
+                "def build(value: 'LaterType') -> 'LaterType':\n"
+                "    return value\n",
+                encoding="utf-8",
+            )
+
+            self.assertNotIn("lazy_v_models", sys.modules)
+
+            consumer_spec = spec_from_file_location("lazy_v_consumer", root / "lazy_v_consumer.py")
+            assert consumer_spec is not None and consumer_spec.loader is not None
+            consumer_module = module_from_spec(consumer_spec)
+            sys.modules["lazy_v_consumer"] = consumer_module
+            consumer_spec.loader.exec_module(consumer_module)
+
+            self.assertNotIn("lazy_v_models", sys.modules)
+
+            models_spec = spec_from_file_location("lazy_v_models", root / "lazy_v_models.py")
+            assert models_spec is not None and models_spec.loader is not None
+            models_module = module_from_spec(models_spec)
+            sys.modules["lazy_v_models"] = models_module
+            models_spec.loader.exec_module(models_module)
+
+            instance = models_module.LaterType()
+            self.assertIs(consumer_module.build(instance), instance)
+            with self.assertRaises(TypeError):
+                consumer_module.build(1)
 
     def test_validate_resolves_forward_annotation_from_type_checking_import(self):
         with TemporaryDirectory() as temp_dir:

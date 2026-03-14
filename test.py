@@ -1,6 +1,11 @@
 import unittest
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import Any, Literal, TypedDict
+
+try:
+    from typing import Unpack
+except ImportError:
+    from typing_extensions import Unpack
 
 from src.validating import (
     ValidatorError,
@@ -496,6 +501,23 @@ class TestValidateFunctionDecorator(unittest.TestCase):
             collect(1, "2", key="v")
         with self.assertRaises(TypeError):
             collect(1, 2, key=3)
+
+    def test_validate_supports_unpack_typed_dict_for_kwargs(self):
+        class Query(TypedDict):
+            limit: int
+            cursor: str
+
+        @validate
+        def fetch(**kwargs: Unpack[Query]):
+            return kwargs
+
+        self.assertEqual(fetch(limit=1, cursor="next"), {"limit": 1, "cursor": "next"})
+        with self.assertRaises(TypeError):
+            fetch(limit="1", cursor="next")
+        with self.assertRaises(TypeError):
+            fetch(limit=1)
+        with self.assertRaises(TypeError):
+            fetch(limit=1, cursor="next", extra="x")
 
     def test_validate_resolves_string_annotations(self):
         @validate

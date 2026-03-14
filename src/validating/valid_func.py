@@ -13,11 +13,16 @@ from functools import wraps
 from inspect import Parameter, Signature, getsourcelines, signature
 from textwrap import dedent
 from traceback import TracebackException
-from typing import Any, Callable, get_type_hints
+from typing import Any, Callable, get_args, get_origin, get_type_hints
 
 from .valid_attr import _collect_runtime_localns, _get_owner_localns, isoftype
 
 __all__ = ["validate"]
+
+try:  # pragma: no cover - Python >= 3.11
+    from typing import Unpack
+except ImportError:  # pragma: no cover - Python < 3.11
+    from typing_extensions import Unpack
 
 _VALIDATE_MARKER = "__validating_is_validate_wrapped__"
 
@@ -302,6 +307,17 @@ def _validate_bound_arguments(
             continue
 
         if param.kind is Parameter.VAR_KEYWORD:
+            if get_origin(annotation) is Unpack:
+                unpacked = get_args(annotation)
+                unpacked_annotation = unpacked[0] if unpacked else annotation
+                mismatch_reason = isoftype(value, unpacked_annotation, name, path=name)
+                if mismatch_reason is not None:
+                    raise TypeError(
+                        f"invalid type for argument {name!r} of {func.__name__}: "
+                        + mismatch_reason
+                    )
+                continue
+
             for key, item in value.items():
                 mismatch_reason = isoftype(
                     item,

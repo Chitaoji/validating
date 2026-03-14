@@ -23,9 +23,9 @@ from typing import (
 )
 
 try:  # pragma: no cover - Python >= 3.11
-    from typing import NotRequired, Required
+    from typing import NotRequired, Required, Unpack
 except ImportError:  # pragma: no cover - Python < 3.11
-    from typing_extensions import NotRequired, Required
+    from typing_extensions import NotRequired, Required, Unpack
 
 try:  # pragma: no cover - available on modern Python versions
     from typing import is_typeddict
@@ -670,6 +670,10 @@ def isoftype(
         if value in args:
             return None
         return _format_isoftype_error(path, f"one of {args!r}, got {value!r} instead")
+
+    if origin is Unpack:
+        (unpacked_type,) = args
+        return isoftype(value, unpacked_type, name, path)
 
     if origin is list:
         (elem_type,) = args

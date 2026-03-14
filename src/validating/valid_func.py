@@ -13,11 +13,22 @@ from functools import wraps
 from inspect import Parameter, Signature, getsourcelines, signature
 from textwrap import dedent
 from traceback import TracebackException
-from typing import Any, Callable, get_type_hints
+from typing import Any, Callable, get_args, get_origin, get_type_hints
 
-from .valid_attr import _collect_runtime_localns, _get_owner_localns, isoftype
+from .valid_attr import (
+    _collect_runtime_localns,
+    _collect_type_checking_names,
+    _get_owner_localns,
+    _merge_localns,
+    isoftype,
+)
 
 __all__ = ["validate"]
+
+try:  # pragma: no cover - Python >= 3.11
+    from typing import Unpack
+except ImportError:  # pragma: no cover - Python < 3.11
+    from typing_extensions import Unpack
 
 _VALIDATE_MARKER = "__validating_is_validate_wrapped__"
 
@@ -53,6 +64,7 @@ def validate[T](func: T) -> T:
         return func
 
     sig = signature(func)
+    parameters = sig.parameters
     owner_localns = _get_owner_localns()
     resolved_annotations, deferred_annotations = _resolve_signature_annotations(
         func,
@@ -69,7 +81,7 @@ def validate[T](func: T) -> T:
             deferred_annotations,
             initial_localns=owner_localns,
         )
-        _validate_bound_arguments(func, sig, bound.arguments, resolved_annotations)
+        _validate_bound_arguments(func, parameters, bound.arguments, resolved_annotations)
         try:
             return func(*args, **kwargs)
         except AssertionError as exc:
@@ -219,7 +231,15 @@ def _resolve_signature_annotations(
             include_extras=True,
         )
     except Exception:
-        type_hints = {}
+        try:
+            type_hints = get_type_hints(
+                func,
+                globalns=globalns,
+                localns=_merge_localns(localns, _collect_type_checking_names(func.__module__)),
+                include_extras=True,
+            )
+        except Exception:
+            type_hints = {}
 
     for name, param in sig.parameters.items():
         annotation = param.annotation
@@ -246,7 +266,10 @@ def _resolve_deferred_signature_annotations(
     if not deferred_annotations:
         return
 
-    localns = _collect_runtime_localns(initial_localns)
+    localns = _merge_localns(
+        _collect_runtime_localns(initial_localns),
+        _collect_type_checking_names(func.__module__),
+    )
     globalns = vars(__import__(func.__module__, fromlist=["*"]))
     try:
         type_hints = get_type_hints(
@@ -276,12 +299,12 @@ def _resolve_deferred_signature_annotations(
 
 def _validate_bound_arguments(
     func: Callable[..., Any],
-    sig: Signature,
+    parameters: dict[str, Parameter],
     arguments: dict[str, Any],
     resolved_annotations: dict[str, Any],
 ) -> None:
     for name, value in arguments.items():
-        param = sig.parameters[name]
+        param = parameters[name]
         if name not in resolved_annotations:
             continue
         annotation = resolved_annotations[name]
@@ -295,13 +318,18 @@ def _validate_bound_arguments(
                     path=f"{name}[{idx}]",
                 )
                 if mismatch_reason is not None:
-                    raise TypeError(
-                        f"invalid type for argument {name!r} of {func.__name__}: "
-                        + mismatch_reason
-                    )
+                    _raise_argument_type_error(func, name, mismatch_reason)
             continue
 
         if param.kind is Parameter.VAR_KEYWORD:
+            if get_origin(annotation) is Unpack:
+                unpacked = get_args(annotation)
+                unpacked_annotation = unpacked[0] if unpacked else annotation
+                mismatch_reason = isoftype(value, unpacked_annotation, name, path=name)
+                if mismatch_reason is not None:
+                    _raise_argument_type_error(func, name, mismatch_reason)
+                continue
+
             for key, item in value.items():
                 mismatch_reason = isoftype(
                     item,
@@ -310,15 +338,17 @@ def _validate_bound_arguments(
                     path=f"{name}[{key!r}]",
                 )
                 if mismatch_reason is not None:
-                    raise TypeError(
-                        f"invalid type for argument {name!r} of {func.__name__}: "
-                        + mismatch_reason
-                    )
+                    _raise_argument_type_error(func, name, mismatch_reason)
             continue
 
         mismatch_reason = isoftype(value, annotation, name)
         if mismatch_reason is not None:
-            raise TypeError(
-                f"invalid type for argument {name!r} of {func.__name__}: "
-                + mismatch_reason
-            )
+            _raise_argument_type_error(func, name, mismatch_reason)
+
+
+def _raise_argument_type_error(
+    func: Callable[..., Any], name: str, mismatch_reason: str
+) -> None:
+    raise TypeError(
+        f"invalid type for argument {name!r} of {func.__name__}: " + mismatch_reason
+    )

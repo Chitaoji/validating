@@ -8,12 +8,24 @@ NOTE: this module is private. All functions and objects are available in the mai
 """
 
 import sys
+from ast import (
+    Attribute,
+    If,
+    Import,
+    ImportFrom,
+    Name,
+    NodeVisitor,
+    parse,
+)
 from dataclasses import Field, field
 from functools import partialmethod
+from importlib import import_module
+from pathlib import Path
 from types import UnionType
 from typing import (
     Any,
     Callable,
+    ForwardRef,
     Literal,
     Optional,
     Union,
@@ -21,6 +33,22 @@ from typing import (
     get_origin,
     get_type_hints,
 )
+
+try:  # pragma: no cover - Python >= 3.11
+    from typing import NotRequired, Required, Unpack
+except ImportError:  # pragma: no cover - Python < 3.11
+    from typing_extensions import NotRequired, Required, Unpack
+
+try:  # pragma: no cover - available on modern Python versions
+    from typing import is_typeddict
+except ImportError:  # pragma: no cover - compatibility fallback
+    def is_typeddict(type_hint: Any) -> bool:
+        return bool(
+            isinstance(type_hint, type)
+            and isinstance(getattr(type_hint, "__annotations__", None), dict)
+            and hasattr(type_hint, "__required_keys__")
+            and hasattr(type_hint, "__optional_keys__")
+        )
 
 __all__ = ["attr"]
 
@@ -536,6 +564,7 @@ def _resolve_field_type_hint(
     name: str,
     *,
     localns: dict[str, Any] | None = None,
+    include_type_checking_names: bool = False,
 ) -> type:
     if name not in cls.__annotations__:
         return Any
@@ -544,18 +573,28 @@ def _resolve_field_type_hint(
     if not isinstance(raw_type_hint, str):
         return raw_type_hint
 
+    merged_localns = localns
+    if include_type_checking_names:
+        merged_localns = _merge_localns(
+            localns,
+            _collect_type_checking_names(cls.__module__),
+        )
+
     try:
         resolved_hints = get_type_hints(
             cls,
             globalns=vars(sys.modules[cls.__module__]),
-            localns=localns,
+            localns=merged_localns,
             include_extras=True,
         )
-    except NameError as exc:
-        raise ValidatorError(
-            f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
-        ) from exc
     except Exception as exc:  # pragma: no cover - exact exception depends on annotation
+        if not include_type_checking_names:
+            return _resolve_field_type_hint(
+                cls,
+                name,
+                localns=localns,
+                include_type_checking_names=True,
+            )
         raise ValidatorError(
             f"failed to resolve annotation for {cls.__name__}.{name}: {raw_type_hint!r}"
         ) from exc
@@ -595,6 +634,89 @@ def _collect_runtime_localns(
     return merged or None
 
 
+def _merge_localns(*namespaces: dict[str, Any] | None) -> dict[str, Any] | None:
+    merged: dict[str, Any] = {}
+    for namespace in namespaces:
+        if namespace:
+            merged.update(namespace)
+    return merged or None
+
+
+def _collect_type_checking_names(module_name: str) -> dict[str, Any]:
+    module = sys.modules.get(module_name)
+    if module is None:
+        return {}
+
+    module_file = getattr(module, "__file__", None)
+    if module_file is None:
+        return {}
+
+    try:
+        source = Path(module_file).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+
+    package = getattr(module, "__package__", None)
+    return _TypeCheckingImportCollector(package).collect(source)
+
+
+class _TypeCheckingImportCollector(NodeVisitor):
+    def __init__(self, package: str | None) -> None:
+        self.package = package
+        self.names: dict[str, Any] = {}
+
+    def collect(self, source: str) -> dict[str, Any]:
+        try:
+            tree = parse(source)
+        except SyntaxError:
+            return {}
+        self.visit(tree)
+        return self.names
+
+    def visit_If(self, node: If) -> None:
+        if self._is_type_checking_guard(node.test):
+            for stmt in node.body:
+                self._consume_type_checking_stmt(stmt)
+
+        self.generic_visit(node)
+
+    @staticmethod
+    def _is_type_checking_guard(test: Any) -> bool:
+        if isinstance(test, Name):
+            return test.id == "TYPE_CHECKING"
+        if isinstance(test, Attribute):
+            return isinstance(test.value, Name) and test.value.id == "typing" and test.attr == "TYPE_CHECKING"
+        return False
+
+    def _consume_type_checking_stmt(self, stmt: Any) -> None:
+        if isinstance(stmt, Import):
+            for alias in stmt.names:
+                try:
+                    module = import_module(alias.name)
+                except Exception:
+                    continue
+                self.names[alias.asname or alias.name.split(".")[0]] = module
+            return
+
+        if not isinstance(stmt, ImportFrom) or stmt.module is None:
+            return
+
+        target_module = "." * stmt.level + stmt.module
+        try:
+            imported = import_module(target_module, self.package)
+        except Exception:
+            return
+
+        for alias in stmt.names:
+            if alias.name == "*":
+                continue
+            try:
+                symbol = getattr(imported, alias.name)
+            except AttributeError:
+                continue
+            self.names[alias.asname or alias.name] = symbol
+
+
 def isoftype(
     value: object, type_hint: type, name: str, path: str = ""
 ) -> Optional[str]:
@@ -625,8 +747,24 @@ def isoftype(
     args = get_args(type_hint)
 
     if origin is None:
-        if isinstance(value, type_hint):
+        if isinstance(type_hint, ForwardRef):
+            # Unresolved forward references may appear in dynamic annotations
+            # (e.g. ``Union[ForwardRef("MyTypedDict"), None]``). At runtime,
+            # accept these values instead of failing with a low-signal error.
             return None
+
+        newtype_super = getattr(type_hint, "__supertype__", None)
+        if newtype_super is not None:
+            return isoftype(value, newtype_super, name, path)
+
+        if is_typeddict(type_hint):
+            return _validate_typed_dict(value, type_hint, name, path)
+
+        try:
+            if isinstance(value, type_hint):
+                return None
+        except TypeError:
+            pass
         return _format_isoftype_error(
             path, f"{type_hint!r}, got {type(value)!r} instead"
         )
@@ -644,6 +782,10 @@ def isoftype(
         if value in args:
             return None
         return _format_isoftype_error(path, f"one of {args!r}, got {value!r} instead")
+
+    if origin is Unpack:
+        (unpacked_type,) = args
+        return isoftype(value, unpacked_type, name, path)
 
     if origin is list:
         (elem_type,) = args
@@ -711,6 +853,48 @@ def _format_isoftype_error(path: str, detail: str) -> str:
     if path:
         return f"{path} expected {detail}"
     return f"expected {detail}"
+
+
+def _validate_typed_dict(
+    value: object,
+    type_hint: Any,
+    name: str,
+    path: str,
+) -> Optional[str]:
+    if not isinstance(value, dict):
+        return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
+
+    annotations = getattr(type_hint, "__annotations__", {})
+    required_keys = set(getattr(type_hint, "__required_keys__", set()))
+    optional_keys = set(getattr(type_hint, "__optional_keys__", set()))
+    allowed_keys = required_keys | optional_keys | set(annotations)
+
+    missing = sorted(required_keys - set(value))
+    if missing:
+        keys = ", ".join(repr(k) for k in missing)
+        return _format_isoftype_error(path, f"missing required keys: {keys}")
+
+    extra = sorted(set(value) - allowed_keys)
+    if extra:
+        keys = ", ".join(repr(k) for k in extra)
+        return _format_isoftype_error(path, f"unexpected keys: {keys}")
+
+    for key, annotated in annotations.items():
+        if key not in value:
+            continue
+        key_type = _unwrap_required_marker(annotated)
+        key_error = isoftype(value[key], key_type, name, f"{name}[{key!r}]")
+        if key_error is not None:
+            return key_error
+
+    return None
+
+
+def _unwrap_required_marker(type_hint: Any) -> Any:
+    origin = get_origin(type_hint)
+    if origin is Required or origin is NotRequired:
+        return get_args(type_hint)[0]
+    return type_hint
 
 
 class ValidatorError(RuntimeError): ...

@@ -165,7 +165,11 @@ class EvenNumber:
 This project falls under the BSD 3-Clause License.
 
 ## History
+### v0.0.2
+* Fixed runtime checking for `TypedDict` and several special typing hints to avoid invalid `isinstance` paths.
+* Added runtime validation support for `typing.Unpack`-style annotations.
+* Improved forward-reference handling under `TYPE_CHECKING` imports, including deferred annotation resolution and safer fallback behavior when references are temporarily unresolved.
+* Refined the `@validate` argument-checking path for better robustness and consistency across annotated call patterns.
 
 ### v0.0.1
-
-- Initial release.
+* Initial release.

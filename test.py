@@ -4,7 +4,7 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from dataclasses import dataclass
-from typing import Any, Literal, TypedDict
+from typing import Any, ForwardRef, Literal, TypedDict
 
 try:
     from typing import Unpack
@@ -570,6 +570,17 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         self.assertEqual(add(1, 2), 3)
         with self.assertRaises(TypeError):
             add("1", 2)
+
+    def test_validate_accepts_union_with_unresolved_forward_ref(self):
+        @validate
+        def set_figure(kwargs: ForwardRef("SubplotDict") | None):
+            return kwargs
+
+        self.assertEqual(
+            set_figure({"left": 0.1, "right": 0.9}),
+            {"left": 0.1, "right": 0.9},
+        )
+        self.assertIsNone(set_figure(None))
 
     def test_validate_resolves_forward_string_annotations_in_local_scope(self):
         @validate

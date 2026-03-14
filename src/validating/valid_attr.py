@@ -8,8 +8,19 @@ NOTE: this module is private. All functions and objects are available in the mai
 """
 
 import sys
+from ast import (
+    Attribute,
+    If,
+    Import,
+    ImportFrom,
+    Name,
+    NodeVisitor,
+    parse,
+)
 from dataclasses import Field, field
 from functools import partialmethod
+from importlib import import_module
+from pathlib import Path
 from types import UnionType
 from typing import (
     Any,
@@ -560,11 +571,16 @@ def _resolve_field_type_hint(
     if not isinstance(raw_type_hint, str):
         return raw_type_hint
 
+    merged_localns = _merge_localns(
+        localns,
+        _collect_type_checking_names(cls.__module__),
+    )
+
     try:
         resolved_hints = get_type_hints(
             cls,
             globalns=vars(sys.modules[cls.__module__]),
-            localns=localns,
+            localns=merged_localns,
             include_extras=True,
         )
     except NameError as exc:
@@ -609,6 +625,89 @@ def _collect_runtime_localns(
         depth += 1
 
     return merged or None
+
+
+def _merge_localns(*namespaces: dict[str, Any] | None) -> dict[str, Any] | None:
+    merged: dict[str, Any] = {}
+    for namespace in namespaces:
+        if namespace:
+            merged.update(namespace)
+    return merged or None
+
+
+def _collect_type_checking_names(module_name: str) -> dict[str, Any]:
+    module = sys.modules.get(module_name)
+    if module is None:
+        return {}
+
+    module_file = getattr(module, "__file__", None)
+    if module_file is None:
+        return {}
+
+    try:
+        source = Path(module_file).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return {}
+
+    package = getattr(module, "__package__", None)
+    return _TypeCheckingImportCollector(package).collect(source)
+
+
+class _TypeCheckingImportCollector(NodeVisitor):
+    def __init__(self, package: str | None) -> None:
+        self.package = package
+        self.names: dict[str, Any] = {}
+
+    def collect(self, source: str) -> dict[str, Any]:
+        try:
+            tree = parse(source)
+        except SyntaxError:
+            return {}
+        self.visit(tree)
+        return self.names
+
+    def visit_If(self, node: If) -> None:
+        if self._is_type_checking_guard(node.test):
+            for stmt in node.body:
+                self._consume_type_checking_stmt(stmt)
+
+        self.generic_visit(node)
+
+    @staticmethod
+    def _is_type_checking_guard(test: Any) -> bool:
+        if isinstance(test, Name):
+            return test.id == "TYPE_CHECKING"
+        if isinstance(test, Attribute):
+            return isinstance(test.value, Name) and test.value.id == "typing" and test.attr == "TYPE_CHECKING"
+        return False
+
+    def _consume_type_checking_stmt(self, stmt: Any) -> None:
+        if isinstance(stmt, Import):
+            for alias in stmt.names:
+                try:
+                    module = import_module(alias.name)
+                except Exception:
+                    continue
+                self.names[alias.asname or alias.name.split(".")[0]] = module
+            return
+
+        if not isinstance(stmt, ImportFrom) or stmt.module is None:
+            return
+
+        target_module = "." * stmt.level + stmt.module
+        try:
+            imported = import_module(target_module, self.package)
+        except Exception:
+            return
+
+        for alias in stmt.names:
+            if alias.name == "*":
+                continue
+            try:
+                symbol = getattr(imported, alias.name)
+            except AttributeError:
+                continue
+            self.names[alias.asname or alias.name] = symbol
 
 
 def isoftype(

@@ -20,6 +20,7 @@ from ast import (
 from dataclasses import Field, field
 from functools import partialmethod
 from importlib import import_module
+from importlib.util import resolve_name
 from pathlib import Path
 from types import UnionType
 from typing import (
@@ -692,7 +693,7 @@ class _TypeCheckingImportCollector(NodeVisitor):
         if isinstance(stmt, Import):
             for alias in stmt.names:
                 try:
-                    module = import_module(alias.name)
+                    module = self._get_module(alias.name)
                 except Exception:
                     continue
                 self.names[alias.asname or alias.name.split(".")[0]] = module
@@ -703,7 +704,7 @@ class _TypeCheckingImportCollector(NodeVisitor):
 
         target_module = "." * stmt.level + stmt.module
         try:
-            imported = import_module(target_module, self.package)
+            imported = self._get_module(target_module)
         except Exception:
             return
 
@@ -715,6 +716,17 @@ class _TypeCheckingImportCollector(NodeVisitor):
             except AttributeError:
                 continue
             self.names[alias.asname or alias.name] = symbol
+
+    def _get_module(self, module_name: str) -> Any:
+        resolved_name = module_name
+        if module_name.startswith("."):
+            resolved_name = resolve_name(module_name, self.package or "")
+
+        preloaded = sys.modules.get(resolved_name)
+        if preloaded is not None:
+            return preloaded
+
+        return import_module(module_name, self.package)
 
 
 def isoftype(

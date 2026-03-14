@@ -22,6 +22,22 @@ from typing import (
     get_type_hints,
 )
 
+try:  # pragma: no cover - Python >= 3.11
+    from typing import NotRequired, Required
+except ImportError:  # pragma: no cover - Python < 3.11
+    from typing_extensions import NotRequired, Required
+
+try:  # pragma: no cover - available on modern Python versions
+    from typing import is_typeddict
+except ImportError:  # pragma: no cover - compatibility fallback
+    def is_typeddict(type_hint: Any) -> bool:
+        return bool(
+            isinstance(type_hint, type)
+            and isinstance(getattr(type_hint, "__annotations__", None), dict)
+            and hasattr(type_hint, "__required_keys__")
+            and hasattr(type_hint, "__optional_keys__")
+        )
+
 __all__ = ["attr"]
 
 
@@ -625,8 +641,18 @@ def isoftype(
     args = get_args(type_hint)
 
     if origin is None:
-        if isinstance(value, type_hint):
-            return None
+        newtype_super = getattr(type_hint, "__supertype__", None)
+        if newtype_super is not None:
+            return isoftype(value, newtype_super, name, path)
+
+        if is_typeddict(type_hint):
+            return _validate_typed_dict(value, type_hint, name, path)
+
+        try:
+            if isinstance(value, type_hint):
+                return None
+        except TypeError:
+            pass
         return _format_isoftype_error(
             path, f"{type_hint!r}, got {type(value)!r} instead"
         )
@@ -711,6 +737,48 @@ def _format_isoftype_error(path: str, detail: str) -> str:
     if path:
         return f"{path} expected {detail}"
     return f"expected {detail}"
+
+
+def _validate_typed_dict(
+    value: object,
+    type_hint: Any,
+    name: str,
+    path: str,
+) -> Optional[str]:
+    if not isinstance(value, dict):
+        return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
+
+    annotations = getattr(type_hint, "__annotations__", {})
+    required_keys = set(getattr(type_hint, "__required_keys__", set()))
+    optional_keys = set(getattr(type_hint, "__optional_keys__", set()))
+    allowed_keys = required_keys | optional_keys | set(annotations)
+
+    missing = sorted(required_keys - set(value))
+    if missing:
+        keys = ", ".join(repr(k) for k in missing)
+        return _format_isoftype_error(path, f"missing required keys: {keys}")
+
+    extra = sorted(set(value) - allowed_keys)
+    if extra:
+        keys = ", ".join(repr(k) for k in extra)
+        return _format_isoftype_error(path, f"unexpected keys: {keys}")
+
+    for key, annotated in annotations.items():
+        if key not in value:
+            continue
+        key_type = _unwrap_required_marker(annotated)
+        key_error = isoftype(value[key], key_type, name, f"{name}[{key!r}]")
+        if key_error is not None:
+            return key_error
+
+    return None
+
+
+def _unwrap_required_marker(type_hint: Any) -> Any:
+    origin = get_origin(type_hint)
+    if origin is Required or origin is NotRequired:
+        return get_args(type_hint)[0]
+    return type_hint
 
 
 class ValidatorError(RuntimeError): ...

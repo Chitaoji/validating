@@ -64,6 +64,7 @@ def validate[T](func: T) -> T:
         return func
 
     sig = signature(func)
+    parameters = sig.parameters
     owner_localns = _get_owner_localns()
     resolved_annotations, deferred_annotations = _resolve_signature_annotations(
         func,
@@ -80,7 +81,7 @@ def validate[T](func: T) -> T:
             deferred_annotations,
             initial_localns=owner_localns,
         )
-        _validate_bound_arguments(func, sig, bound.arguments, resolved_annotations)
+        _validate_bound_arguments(func, parameters, bound.arguments, resolved_annotations)
         try:
             return func(*args, **kwargs)
         except AssertionError as exc:
@@ -298,12 +299,12 @@ def _resolve_deferred_signature_annotations(
 
 def _validate_bound_arguments(
     func: Callable[..., Any],
-    sig: Signature,
+    parameters: dict[str, Parameter],
     arguments: dict[str, Any],
     resolved_annotations: dict[str, Any],
 ) -> None:
     for name, value in arguments.items():
-        param = sig.parameters[name]
+        param = parameters[name]
         if name not in resolved_annotations:
             continue
         annotation = resolved_annotations[name]
@@ -317,10 +318,7 @@ def _validate_bound_arguments(
                     path=f"{name}[{idx}]",
                 )
                 if mismatch_reason is not None:
-                    raise TypeError(
-                        f"invalid type for argument {name!r} of {func.__name__}: "
-                        + mismatch_reason
-                    )
+                    _raise_argument_type_error(func, name, mismatch_reason)
             continue
 
         if param.kind is Parameter.VAR_KEYWORD:
@@ -329,10 +327,7 @@ def _validate_bound_arguments(
                 unpacked_annotation = unpacked[0] if unpacked else annotation
                 mismatch_reason = isoftype(value, unpacked_annotation, name, path=name)
                 if mismatch_reason is not None:
-                    raise TypeError(
-                        f"invalid type for argument {name!r} of {func.__name__}: "
-                        + mismatch_reason
-                    )
+                    _raise_argument_type_error(func, name, mismatch_reason)
                 continue
 
             for key, item in value.items():
@@ -343,15 +338,17 @@ def _validate_bound_arguments(
                     path=f"{name}[{key!r}]",
                 )
                 if mismatch_reason is not None:
-                    raise TypeError(
-                        f"invalid type for argument {name!r} of {func.__name__}: "
-                        + mismatch_reason
-                    )
+                    _raise_argument_type_error(func, name, mismatch_reason)
             continue
 
         mismatch_reason = isoftype(value, annotation, name)
         if mismatch_reason is not None:
-            raise TypeError(
-                f"invalid type for argument {name!r} of {func.__name__}: "
-                + mismatch_reason
-            )
+            _raise_argument_type_error(func, name, mismatch_reason)
+
+
+def _raise_argument_type_error(
+    func: Callable[..., Any], name: str, mismatch_reason: str
+) -> None:
+    raise TypeError(
+        f"invalid type for argument {name!r} of {func.__name__}: " + mismatch_reason
+    )

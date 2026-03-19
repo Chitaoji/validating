@@ -166,10 +166,7 @@ This project falls under the BSD 3-Clause License.
 
 ## History
 ### v0.0.3
-* Added `validating.dataclass`, an enhanced `dataclasses.dataclass` wrapper with automatic `attr(...)` field promotion and optional public-method argument validation via `validate_methods=True`.
 * Improved support for `PEP 585` generics with quoted builtin annotations (for example `list["int"]`) to ensure consistent runtime type validation.
-* Refined validation error messaging for bound checks to produce clearer combined expectations (for example `1 ≤ score ≤ 2` and `1 < score ≤ 2`).
-* Hardened `@validate` integration and wrapping logic to avoid double-wrapping methods that are already decorated.
 
 ### v0.0.2
 * Fixed runtime checking for `TypedDict` and several special typing hints to avoid invalid `isinstance` paths.

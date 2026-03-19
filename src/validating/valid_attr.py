@@ -8,6 +8,7 @@ NOTE: this module is private. All functions and objects are available in the mai
 """
 
 import sys
+import builtins
 from ast import (
     Attribute,
     If,
@@ -741,6 +742,14 @@ def isoftype(
 
     """
     if type_hint is Any:
+        return None
+
+    if isinstance(type_hint, str):
+        resolved_builtin = getattr(builtins, type_hint, None)
+        if isinstance(resolved_builtin, type):
+            return isoftype(value, resolved_builtin, name, path)
+        # Unresolved string annotations can appear in runtime generic aliases
+        # such as ``list["MyType"]``. Match ForwardRef behavior and accept.
         return None
 
     origin = get_origin(type_hint)

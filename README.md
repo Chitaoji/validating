@@ -165,6 +165,9 @@ class EvenNumber:
 This project falls under the BSD 3-Clause License.
 
 ## History
+### v0.0.3
+* Improved support for `PEP 585` generics with quoted builtin annotations (for example `list["int"]`) to ensure consistent runtime type validation.
+
 ### v0.0.2
 * Fixed runtime checking for `TypedDict` and several special typing hints to avoid invalid `isinstance` paths.
 * Added runtime validation support for `typing.Unpack`-style annotations.

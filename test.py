@@ -140,6 +140,17 @@ class TestAttrWithDataclasses(unittest.TestCase):
         with self.assertRaises(TypeError):
             u.age = "bad"
 
+    def test_type_validation_for_quoted_builtin_in_pep585_generic(self):
+        @validating_dataclass
+        class Payload:
+            values: list["int"] = []
+
+        item = Payload([1])
+        self.assertEqual(item.values, [1])
+
+        with self.assertRaises(TypeError):
+            Payload(["1"])
+
     def test_allowlist_and_denylist(self):
         @dataclass
         class Role:

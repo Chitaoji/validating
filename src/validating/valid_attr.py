@@ -7,8 +7,8 @@ NOTE: this module is private. All functions and objects are available in the mai
 
 """
 
-import sys
 import builtins
+import sys
 from ast import (
     Attribute,
     If,
@@ -43,6 +43,7 @@ except ImportError:  # pragma: no cover - Python < 3.11
 try:  # pragma: no cover - available on modern Python versions
     from typing import is_typeddict
 except ImportError:  # pragma: no cover - compatibility fallback
+
     def is_typeddict(type_hint: Any) -> bool:
         return bool(
             isinstance(type_hint, type)
@@ -50,6 +51,7 @@ except ImportError:  # pragma: no cover - compatibility fallback
             and hasattr(type_hint, "__required_keys__")
             and hasattr(type_hint, "__optional_keys__")
         )
+
 
 __all__ = ["attr"]
 
@@ -686,7 +688,11 @@ class _TypeCheckingImportCollector(NodeVisitor):
         if isinstance(test, Name):
             return test.id == "TYPE_CHECKING"
         if isinstance(test, Attribute):
-            return isinstance(test.value, Name) and test.value.id == "typing" and test.attr == "TYPE_CHECKING"
+            return (
+                isinstance(test.value, Name)
+                and test.value.id == "typing"
+                and test.attr == "TYPE_CHECKING"
+            )
         return False
 
     def _consume_type_checking_stmt(self, stmt: Any) -> None:
@@ -774,7 +780,7 @@ def isoftype(
                 return None
         except TypeError:
             pass
-        return _format_isoftype_error(
+        return _format_expected_error(
             path, f"{type_hint!r}, got {type(value)!r} instead"
         )
 
@@ -782,7 +788,7 @@ def isoftype(
         union_errors = [isoftype(value, arg, name, path) for arg in args]
         if any(error is None for error in union_errors):
             return None
-        return _format_isoftype_error(
+        return _format_expected_error(
             path,
             f"one of {args}, got {value.__class__!r} instead",
         )
@@ -790,7 +796,7 @@ def isoftype(
     if origin is Literal:
         if value in args:
             return None
-        return _format_isoftype_error(path, f"one of {args!r}, got {value!r} instead")
+        return _format_expected_error(path, f"one of {args!r}, got {value!r} instead")
 
     if origin is Unpack:
         (unpacked_type,) = args
@@ -799,7 +805,7 @@ def isoftype(
     if origin is list:
         (elem_type,) = args
         if not isinstance(value, list):
-            return _format_isoftype_error(path, f"a list, got {type(value)!r} instead")
+            return _format_expected_error(path, f"a list, got {type(value)!r} instead")
         for idx, elem in enumerate(value):
             elem_error = isoftype(elem, elem_type, name, f"{name}[{idx}]")
             if elem_error is not None:
@@ -810,7 +816,7 @@ def isoftype(
         if len(args) == 2 and args[1] is ...:
             (elem_type, _) = args
             if not isinstance(value, tuple):
-                return _format_isoftype_error(
+                return _format_expected_error(
                     path, f"a tuple, got {type(value)!r} instead"
                 )
             for idx, elem in enumerate(value):
@@ -820,7 +826,7 @@ def isoftype(
             return None
 
         if not isinstance(value, tuple) or len(value) != len(args):
-            return _format_isoftype_error(
+            return _format_expected_error(
                 path,
                 f"a tuple with {len(args)} elements, got {type(value)!r} with "
                 f"length {len(value) if isinstance(value, tuple) else 'N/A'} instead",
@@ -834,7 +840,7 @@ def isoftype(
     if origin is dict:
         key_t, val_t = args
         if not isinstance(value, dict):
-            return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
+            return _format_expected_error(path, f"a dict, got {type(value)!r} instead")
         for key, val in value.items():
             key_error = isoftype(key, key_t, name, f"{name}.keys() element {key!r}")
             if key_error is not None:
@@ -847,7 +853,7 @@ def isoftype(
     if origin is set:
         (elem_type,) = args
         if not isinstance(value, set):
-            return _format_isoftype_error(path, f"a set, got {type(value)!r} instead")
+            return _format_expected_error(path, f"a set, got {type(value)!r} instead")
         for elem in value:
             elem_path = f"{path} element {elem!r}" if path else f"element {elem!r}"
             elem_error = isoftype(elem, elem_type, name, elem_path)
@@ -858,10 +864,16 @@ def isoftype(
     raise NotImplementedError(f"Unsupported type hint: {type_hint}")
 
 
-def _format_isoftype_error(path: str, detail: str) -> str:
+def _format_expected_error(path: str, detail: str) -> str:
     if path:
         return f"{path} expected {detail}"
     return f"expected {detail}"
+
+
+def _format_error(path: str, detail: str) -> str:
+    if path:
+        return f"{path} {detail}"
+    return detail
 
 
 def _validate_typed_dict(
@@ -871,7 +883,7 @@ def _validate_typed_dict(
     path: str,
 ) -> Optional[str]:
     if not isinstance(value, dict):
-        return _format_isoftype_error(path, f"a dict, got {type(value)!r} instead")
+        return _format_expected_error(path, f"a dict, got {type(value)!r} instead")
 
     annotations = getattr(type_hint, "__annotations__", {})
     required_keys = set(getattr(type_hint, "__required_keys__", set()))
@@ -881,12 +893,12 @@ def _validate_typed_dict(
     missing = sorted(required_keys - set(value))
     if missing:
         keys = ", ".join(repr(k) for k in missing)
-        return _format_isoftype_error(path, f"missing required keys: {keys}")
+        return _format_error(path, f"missing required keys: {keys}")
 
     extra = sorted(set(value) - allowed_keys)
     if extra:
         keys = ", ".join(repr(k) for k in extra)
-        return _format_isoftype_error(path, f"unexpected keys: {keys}")
+        return _format_error(path, f"got unexpected keys: {keys}")
 
     for key, annotated in annotations.items():
         if key not in value:

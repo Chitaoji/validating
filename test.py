@@ -22,6 +22,12 @@ from src.validating import (
 
 
 class TestAttrWithDataclasses(unittest.TestCase):
+    def test_validating_dataclass_exposes_dataclass_transform_metadata(self):
+        metadata = getattr(validating_dataclass, "__dataclass_transform__", None)
+        self.assertIsNotNone(metadata)
+        self.assertIn("field_specifiers", metadata)
+        self.assertIn(attr, metadata["field_specifiers"])
+
     def test_validating_dataclass_can_validate_public_methods(self):
         @validating_dataclass(validate_methods=True)
         class Config:

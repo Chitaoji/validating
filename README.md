@@ -166,6 +166,7 @@ This project falls under the BSD 3-Clause License.
 
 ## History
 ### v0.0.5
+* Added `typing.dataclass_transform` metadata to `validating.dataclass` (with `attr` and `dataclasses.Field` specifiers) to improve IDE/static-analysis support, including better Pylance hints.
 
 ### v0.0.4
 * Updated error messages when validating typed dicts.

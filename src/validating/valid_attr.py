@@ -794,7 +794,7 @@ def isoftype(
         )
 
     if origin is Literal:
-        if value in args:
+        if any(_literal_matches(value, literal) for literal in args):
             return None
         return _format_expected_error(path, f"one of {args!r}, got {value!r} instead")
 
@@ -874,6 +874,24 @@ def _format_error(path: str, detail: str) -> str:
     if path:
         return f"{path} {detail}"
     return detail
+
+
+def _literal_matches(value: object, literal: object) -> bool:
+    if value is literal:
+        return True
+
+    try:
+        comparison = value == literal
+    except Exception:
+        return False
+
+    if isinstance(comparison, bool):
+        return comparison
+
+    try:
+        return bool(comparison)
+    except Exception:
+        return False
 
 
 def _validate_typed_dict(

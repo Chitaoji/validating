@@ -753,6 +753,35 @@ class TestValidateFunctionDecorator(unittest.TestCase):
         with self.assertRaises(TypeError):
             configure("dev", {"a": "1"})
 
+    def test_validate_literal_union_with_numpy_array(self):
+        try:
+            import numpy as np
+        except ImportError:
+            self.skipTest("numpy is not installed")
+
+        @validate
+        def func(a: Literal[1, 2] | np.ndarray):
+            return a
+
+        arr = np.array([1, 2, 3])
+        self.assertTrue((func(arr) == arr).all())
+
+    def test_validate_literal_union_handles_ambiguous_equality_result(self):
+        class AmbiguousBool:
+            def __bool__(self):
+                raise ValueError("ambiguous truth value")
+
+        class WeirdValue:
+            def __eq__(self, _other):
+                return AmbiguousBool()
+
+        @validate
+        def func(a: Literal[1, 2] | WeirdValue):
+            return a
+
+        value = WeirdValue()
+        self.assertIs(func(value), value)
+
     def test_validate_preserves_assertion_error_with_message(self):
         @validate
         def check(a: int) -> int:

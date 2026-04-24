@@ -1,15 +1,10 @@
-import unittest
 import sys
+import unittest
+from dataclasses import dataclass
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from dataclasses import dataclass
-from typing import Any, ForwardRef, Literal, TypedDict
-
-try:
-    from typing import Unpack
-except ImportError:
-    from typing_extensions import Unpack
+from typing import Any, Literal
 
 from src.validating import (
     ValidatorError,
@@ -327,8 +322,7 @@ class TestAttrWithDataclasses(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "lazy_models.py").write_text(
-                "class LaterType:\n"
-                "    pass\n",
+                "class LaterType:\n    pass\n",
                 encoding="utf-8",
             )
             (root / "lazy_consumer.py").write_text(
@@ -347,7 +341,9 @@ class TestAttrWithDataclasses(unittest.TestCase):
 
             self.assertNotIn("lazy_models", sys.modules)
 
-            consumer_spec = spec_from_file_location("lazy_consumer", root / "lazy_consumer.py")
+            consumer_spec = spec_from_file_location(
+                "lazy_consumer", root / "lazy_consumer.py"
+            )
             assert consumer_spec is not None and consumer_spec.loader is not None
             consumer_module = module_from_spec(consumer_spec)
             sys.modules["lazy_consumer"] = consumer_module
@@ -355,7 +351,9 @@ class TestAttrWithDataclasses(unittest.TestCase):
 
             self.assertNotIn("lazy_models", sys.modules)
 
-            models_spec = spec_from_file_location("lazy_models", root / "lazy_models.py")
+            models_spec = spec_from_file_location(
+                "lazy_models", root / "lazy_models.py"
+            )
             assert models_spec is not None and models_spec.loader is not None
             models_module = module_from_spec(models_spec)
             sys.modules["lazy_models"] = models_module
@@ -370,8 +368,7 @@ class TestAttrWithDataclasses(unittest.TestCase):
         with TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             (root / "models.py").write_text(
-                "class LaterType:\n"
-                "    pass\n",
+                "class LaterType:\n    pass\n",
                 encoding="utf-8",
             )
             (root / "consumer.py").write_text(
@@ -573,7 +570,3 @@ class TestAttrWithDataclasses(unittest.TestCase):
             RuntimeError, r"dataclasses with slots=True are not supported"
         ):
             Config()
-
-
-if __name__ == "__main__":
-    unittest.main()

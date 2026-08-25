@@ -204,7 +204,6 @@ def _field_with_guard(
         base_field.compare,
         base_field.metadata,
         base_field.kw_only,
-        None,
     )
     guarded_field._field_type = base_field._field_type
     return guarded_field
